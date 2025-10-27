@@ -13,7 +13,10 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <React.StrictMode>
-    <DndProvider backend={isMobile() ? TouchBackend : HTML5Backend}>
+    <DndProvider
+      backend={isMobile() ? TouchBackend : HTML5Backend}
+      options={isMobile() ? { enableMouseEvents: true } : undefined}
+    >
       <App />
     </DndProvider>
   </React.StrictMode>

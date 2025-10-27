@@ -33,6 +33,64 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const [draggedPiece, setDraggedPiece] = useState<TetrisPiece | null>(null);
   const [cellSize, setCellSize] = useState<number>(CELL_SIZE);
 
+  const getTopLeftFromClient = (
+    clientX: number,
+    clientY: number,
+    piece?: TetrisPiece | null
+  ) => {
+    if (!boardRef.current || !piece) return null;
+    const boardRect = boardRef.current.getBoundingClientRect();
+    // fractional grid coordinates (may be outside 0..GRID_WIDTH)
+    const fx = (clientX - boardRect.left) / cellSize;
+    const fy = (clientY - boardRect.top) / cellSize;
+    // compute occupied bounding box inside the shape (ignore empty outer rows/cols)
+    let minCol = Infinity,
+      maxCol = -Infinity,
+      minRow = Infinity,
+      maxRow = -Infinity;
+    for (let r = 0; r < piece.shape.length; r++) {
+      for (let c = 0; c < piece.shape[r].length; c++) {
+        if (piece.shape[r][c]) {
+          minCol = Math.min(minCol, c);
+          maxCol = Math.max(maxCol, c);
+          minRow = Math.min(minRow, r);
+          maxRow = Math.max(maxRow, r);
+        }
+      }
+    }
+    if (minCol === Infinity) {
+      // empty piece?
+      minCol = 0;
+      maxCol = 0;
+      minRow = 0;
+      maxRow = 0;
+    }
+    const pw = maxCol - minCol + 1;
+    const ph = maxRow - minRow + 1;
+
+    // Align the piece so its center (in grid coords) is as close as possible to the
+    // pointer fractional position. This matches a preview that's centered on the pointer.
+    // Compute centered top-left, round to nearest integer, then clamp to board bounds.
+    const centerOffsetX = (pw - 1) / 2;
+    const centerOffsetY = (ph - 1) / 2;
+    // desired occupied-top-left (where the bounding box should be placed)
+    let occX = Math.round(fx - centerOffsetX);
+    let occY = Math.round(fy - centerOffsetY);
+    occX = Math.max(0, Math.min(GRID_WIDTH - pw, occX));
+    occY = Math.max(0, Math.min(GRID_HEIGHT - ph, occY));
+    // convert occupied-top-left to shape-top-left by subtracting min offsets
+    const shapeX = occX - minCol;
+    const shapeY = occY - minRow;
+    // clamp shape top-left so shape indices remain within board
+    const minShapeX = -minCol;
+    const maxShapeX = GRID_WIDTH - (maxCol + 1);
+    const minShapeY = -minRow;
+    const maxShapeY = GRID_HEIGHT - (maxRow + 1);
+    const finalX = Math.max(minShapeX, Math.min(maxShapeX, shapeX));
+    const finalY = Math.max(minShapeY, Math.min(maxShapeY, shapeY));
+    return { x: finalX, y: finalY };
+  };
+
   useEffect(() => {
     const updateCellSize = () => {
       const containerWidth =
@@ -56,15 +114,16 @@ const GameBoard: React.FC<GameBoardProps> = ({
         pieceId: string | null;
       };
       if (!detail || !boardRef.current) return;
-      const boardRect = boardRef.current.getBoundingClientRect();
-      const gridX = Math.floor((detail.clientX - boardRect.left) / cellSize);
-      const gridY = Math.floor((detail.clientY - boardRect.top) / cellSize);
-      const position =
-        gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
-          ? { x: gridX, y: gridY }
-          : null;
-      if (position) {
-        onPiecePlace(position, detail.pieceId ?? undefined);
+      const piece =
+        availablePieces.find((p) => p.instanceId === detail.pieceId) ||
+        selectedPiece;
+      const topLeft = getTopLeftFromClient(
+        detail.clientX,
+        detail.clientY,
+        piece
+      );
+      if (topLeft) {
+        onPiecePlace(topLeft, detail.pieceId ?? undefined);
       }
       setHoverPosition(null);
       setDraggedPiece(null);
@@ -82,31 +141,57 @@ const GameBoard: React.FC<GameBoardProps> = ({
       accept: "PIECE",
       hover: (item: any, monitor: any) => {
         if (!boardRef.current) return;
-        const client = monitor.getClientOffset();
+        // obtain client coords from monitor with multiple fallbacks
+        let client: { x: number; y: number } | null = null;
+        if (monitor.getClientOffset) {
+          client = monitor.getClientOffset();
+        }
+        if (!client && monitor.getSourceClientOffset) {
+          client = monitor.getSourceClientOffset();
+        }
+        if (
+          !client &&
+          monitor.getInitialClientOffset &&
+          monitor.getDifferenceFromInitialOffset
+        ) {
+          const init = monitor.getInitialClientOffset();
+          const diff = monitor.getDifferenceFromInitialOffset();
+          if (init && diff) {
+            client = { x: init.x + diff.x, y: init.y + diff.y };
+          }
+        }
         if (!client) return;
-        const boardRect = boardRef.current.getBoundingClientRect();
-        const gridX = Math.floor((client.x - boardRect.left) / cellSize);
-        const gridY = Math.floor((client.y - boardRect.top) / cellSize);
-        const position =
-          gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
-            ? { x: gridX, y: gridY }
-            : null;
-        setHoverPosition(position);
+        const piece = item?.piece || selectedPiece;
+        const topLeft = getTopLeftFromClient(client.x, client.y, piece);
+        setHoverPosition(topLeft);
         if (item && item.piece) setDraggedPiece(item.piece);
       },
       drop: (item: any, monitor: any) => {
         if (!boardRef.current) return;
-        const client = monitor.getClientOffset();
+        // obtain client coords from monitor with multiple fallbacks
+        let client: { x: number; y: number } | null = null;
+        if (monitor.getClientOffset) {
+          client = monitor.getClientOffset();
+        }
+        if (!client && monitor.getSourceClientOffset) {
+          client = monitor.getSourceClientOffset();
+        }
+        if (
+          !client &&
+          monitor.getInitialClientOffset &&
+          monitor.getDifferenceFromInitialOffset
+        ) {
+          const init = monitor.getInitialClientOffset();
+          const diff = monitor.getDifferenceFromInitialOffset();
+          if (init && diff) {
+            client = { x: init.x + diff.x, y: init.y + diff.y };
+          }
+        }
         if (!client) return;
-        const boardRect = boardRef.current.getBoundingClientRect();
-        const gridX = Math.floor((client.x - boardRect.left) / cellSize);
-        const gridY = Math.floor((client.y - boardRect.top) / cellSize);
-        const position =
-          gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
-            ? { x: gridX, y: gridY }
-            : null;
-        if (position) {
-          onPiecePlace(position, item?.instanceId);
+        const piece = item?.piece || selectedPiece;
+        const topLeft = getTopLeftFromClient(client.x, client.y, piece);
+        if (topLeft) {
+          onPiecePlace(topLeft, item?.instanceId);
         }
         setHoverPosition(null);
         setDraggedPiece(null);
@@ -127,27 +212,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
   // Pointer drag for mobile/desktop
   const handlePointerMove = (e: React.PointerEvent) => {
     if (!selectedPiece || !boardRef.current) return;
-    const boardRect = boardRef.current.getBoundingClientRect();
-    const gridX = Math.floor((e.clientX - boardRect.left) / cellSize);
-    const gridY = Math.floor((e.clientY - boardRect.top) / cellSize);
-    const position =
-      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
-        ? { x: gridX, y: gridY }
-        : null;
-    setHoverPosition(position);
+    const topLeft = getTopLeftFromClient(e.clientX, e.clientY, selectedPiece);
+    setHoverPosition(topLeft);
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
     if (!selectedPiece || !boardRef.current) return;
-    const boardRect = boardRef.current.getBoundingClientRect();
-    const gridX = Math.floor((e.clientX - boardRect.left) / cellSize);
-    const gridY = Math.floor((e.clientY - boardRect.top) / cellSize);
-    const position =
-      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
-        ? { x: gridX, y: gridY }
-        : null;
-    if (position) {
-      onPiecePlace(position);
+    const topLeft = getTopLeftFromClient(e.clientX, e.clientY, selectedPiece);
+    if (topLeft) {
+      onPiecePlace(topLeft);
     }
     setHoverPosition(null);
     setDraggedPiece(null);
@@ -158,29 +231,24 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const handleTouchEnd = (e: React.TouchEvent) => {
       if (!selectedPiece || !boardRef.current) return;
       const touch = e.changedTouches[0];
-      const boardRect = boardRef.current.getBoundingClientRect();
-      const gridX = Math.floor((touch.clientX - boardRect.left) / cellSize);
-      const gridY = Math.floor((touch.clientY - boardRect.top) / cellSize);
-      const position =
-        gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
-          ? { x: gridX, y: gridY }
-          : null;
-      if (position) {
-        onPiecePlace(position);
+      const topLeft = getTopLeftFromClient(
+        touch.clientX,
+        touch.clientY,
+        selectedPiece
+      );
+      if (topLeft) {
+        onPiecePlace(topLeft);
       }
       setHoverPosition(null);
       setDraggedPiece(null);
     };
     if (!selectedPiece || !boardRef.current) return;
-
-    const boardRect = boardRef.current.getBoundingClientRect();
-    const gridX = Math.floor((event.clientX - boardRect.left) / cellSize);
-    const gridY = Math.floor((event.clientY - boardRect.top) / cellSize);
-    const position =
-      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
-        ? { x: gridX, y: gridY }
-        : null;
-    setHoverPosition(position);
+    const topLeft = getTopLeftFromClient(
+      event.clientX,
+      event.clientY,
+      selectedPiece
+    );
+    setHoverPosition(topLeft);
   };
 
   const handleMouseLeave = () => {
@@ -189,16 +257,14 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const handleClick = (event: React.MouseEvent) => {
     if (!selectedPiece || !boardRef.current) return;
-    const boardRect = boardRef.current.getBoundingClientRect();
-    const gridX = Math.floor((event.clientX - boardRect.left) / cellSize);
-    const gridY = Math.floor((event.clientY - boardRect.top) / cellSize);
-    const position =
-      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
-        ? { x: gridX, y: gridY }
-        : null;
-
-    if (position) {
-      onPiecePlace(position);
+    // For click placement we use the top-left computed from the click position
+    const topLeft = getTopLeftFromClient(
+      event.clientX,
+      event.clientY,
+      selectedPiece
+    );
+    if (topLeft) {
+      onPiecePlace(topLeft);
     } else {
       onPieceDeselect();
     }
@@ -339,7 +405,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   return (
     <div className="game-board-container">
       <div
-        ref={boardRef}
+        ref={setBoardRef}
         className="game-board"
         style={{
           position: "relative",
