@@ -1,4 +1,5 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
+import { useDrop } from "react-dnd/dist/hooks/useDrop";
 import { Cell, TetrisPiece } from "../types/GameTypes";
 import {
   getPieceCells,
@@ -74,6 +75,54 @@ const GameBoard: React.FC<GameBoardProps> = ({
     );
     return () => window.removeEventListener("resize", updateCellSize);
   }, []);
+
+  // react-dnd drop target: handles hover and drop when using react-dnd backends
+  const [, drop] = useDrop<any, any, { isOver: boolean }>(
+    () => ({
+      accept: "PIECE",
+      hover: (item: any, monitor: any) => {
+        if (!boardRef.current) return;
+        const client = monitor.getClientOffset();
+        if (!client) return;
+        const boardRect = boardRef.current.getBoundingClientRect();
+        const gridX = Math.floor((client.x - boardRect.left) / cellSize);
+        const gridY = Math.floor((client.y - boardRect.top) / cellSize);
+        const position =
+          gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
+            ? { x: gridX, y: gridY }
+            : null;
+        setHoverPosition(position);
+        if (item && item.piece) setDraggedPiece(item.piece);
+      },
+      drop: (item: any, monitor: any) => {
+        if (!boardRef.current) return;
+        const client = monitor.getClientOffset();
+        if (!client) return;
+        const boardRect = boardRef.current.getBoundingClientRect();
+        const gridX = Math.floor((client.x - boardRect.left) / cellSize);
+        const gridY = Math.floor((client.y - boardRect.top) / cellSize);
+        const position =
+          gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
+            ? { x: gridX, y: gridY }
+            : null;
+        if (position) {
+          onPiecePlace(position, item?.instanceId);
+        }
+        setHoverPosition(null);
+        setDraggedPiece(null);
+      },
+    }),
+    [cellSize]
+  );
+
+  // attach both boardRef and react-dnd drop ref to the board div
+  const setBoardRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      boardRef.current = node;
+      if (node) drop(node);
+    },
+    [drop]
+  );
 
   // Pointer drag for mobile/desktop
   const handlePointerMove = (e: React.PointerEvent) => {
