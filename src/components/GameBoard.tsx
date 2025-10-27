@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Cell, TetrisPiece } from "../types/GameTypes";
 import {
   getPieceCells,
@@ -6,7 +6,6 @@ import {
   GRID_HEIGHT,
   CELL_SIZE,
   SUDOKU_BLOCKS,
-  getGridPositionFromMouse,
 } from "../utils/GameLogic";
 import "./GameBoard.css";
 
@@ -31,16 +30,107 @@ const GameBoard: React.FC<GameBoardProps> = ({
     y: number;
   } | null>(null);
   const [draggedPiece, setDraggedPiece] = useState<TetrisPiece | null>(null);
+  const [cellSize, setCellSize] = useState<number>(CELL_SIZE);
+
+  useEffect(() => {
+    const updateCellSize = () => {
+      const containerWidth =
+        boardRef.current?.parentElement?.clientWidth || window.innerWidth;
+      const maxBoardWidth = Math.min(
+        GRID_WIDTH * CELL_SIZE,
+        containerWidth - 40
+      );
+      const calculated = Math.max(20, Math.floor(maxBoardWidth / GRID_WIDTH));
+      setCellSize(calculated);
+    };
+
+    updateCellSize();
+    window.addEventListener("resize", updateCellSize);
+    // listen for touch-drop events from PieceSelection (custom drop for pointer/touch drags)
+    const handleExternalDrop = (ev: Event) => {
+      const custom = ev as CustomEvent;
+      const detail = custom.detail as {
+        clientX: number;
+        clientY: number;
+        pieceId: string | null;
+      };
+      if (!detail || !boardRef.current) return;
+      const boardRect = boardRef.current.getBoundingClientRect();
+      const gridX = Math.floor((detail.clientX - boardRect.left) / cellSize);
+      const gridY = Math.floor((detail.clientY - boardRect.top) / cellSize);
+      const position =
+        gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
+          ? { x: gridX, y: gridY }
+          : null;
+      if (position) {
+        onPiecePlace(position, detail.pieceId ?? undefined);
+      }
+      setHoverPosition(null);
+      setDraggedPiece(null);
+    };
+    window.addEventListener(
+      "sudoku-tetris-piece-drop",
+      handleExternalDrop as EventListener
+    );
+    return () => window.removeEventListener("resize", updateCellSize);
+  }, []);
+
+  // Pointer drag for mobile/desktop
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!selectedPiece || !boardRef.current) return;
+    const boardRect = boardRef.current.getBoundingClientRect();
+    const gridX = Math.floor((e.clientX - boardRect.left) / cellSize);
+    const gridY = Math.floor((e.clientY - boardRect.top) / cellSize);
+    const position =
+      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
+        ? { x: gridX, y: gridY }
+        : null;
+    setHoverPosition(position);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (!selectedPiece || !boardRef.current) return;
+    const boardRect = boardRef.current.getBoundingClientRect();
+    const gridX = Math.floor((e.clientX - boardRect.left) / cellSize);
+    const gridY = Math.floor((e.clientY - boardRect.top) / cellSize);
+    const position =
+      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
+        ? { x: gridX, y: gridY }
+        : null;
+    if (position) {
+      onPiecePlace(position);
+    }
+    setHoverPosition(null);
+    setDraggedPiece(null);
+  };
 
   const handleMouseMove = (event: React.MouseEvent) => {
+    // Touch drop for mobile
+    const handleTouchEnd = (e: React.TouchEvent) => {
+      if (!selectedPiece || !boardRef.current) return;
+      const touch = e.changedTouches[0];
+      const boardRect = boardRef.current.getBoundingClientRect();
+      const gridX = Math.floor((touch.clientX - boardRect.left) / cellSize);
+      const gridY = Math.floor((touch.clientY - boardRect.top) / cellSize);
+      const position =
+        gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
+          ? { x: gridX, y: gridY }
+          : null;
+      if (position) {
+        onPiecePlace(position);
+      }
+      setHoverPosition(null);
+      setDraggedPiece(null);
+    };
     if (!selectedPiece || !boardRef.current) return;
 
     const boardRect = boardRef.current.getBoundingClientRect();
-    const position = getGridPositionFromMouse(
-      event.clientX,
-      event.clientY,
-      boardRect
-    );
+    const gridX = Math.floor((event.clientX - boardRect.left) / cellSize);
+    const gridY = Math.floor((event.clientY - boardRect.top) / cellSize);
+    const position =
+      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
+        ? { x: gridX, y: gridY }
+        : null;
     setHoverPosition(position);
   };
 
@@ -50,13 +140,13 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const handleClick = (event: React.MouseEvent) => {
     if (!selectedPiece || !boardRef.current) return;
-
     const boardRect = boardRef.current.getBoundingClientRect();
-    const position = getGridPositionFromMouse(
-      event.clientX,
-      event.clientY,
-      boardRect
-    );
+    const gridX = Math.floor((event.clientX - boardRect.left) / cellSize);
+    const gridY = Math.floor((event.clientY - boardRect.top) / cellSize);
+    const position =
+      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
+        ? { x: gridX, y: gridY }
+        : null;
 
     if (position) {
       onPiecePlace(position);
@@ -72,7 +162,12 @@ const GameBoard: React.FC<GameBoardProps> = ({
     if (!boardRef.current) return;
 
     const boardRect = boardRef.current.getBoundingClientRect();
-    const position = getGridPositionFromMouse(e.clientX, e.clientY, boardRect);
+    const gridX = Math.floor((e.clientX - boardRect.left) / cellSize);
+    const gridY = Math.floor((e.clientY - boardRect.top) / cellSize);
+    const position =
+      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
+        ? { x: gridX, y: gridY }
+        : null;
     setHoverPosition(position);
 
     // Find the dragged piece by instanceId
@@ -103,7 +198,12 @@ const GameBoard: React.FC<GameBoardProps> = ({
     if (!boardRef.current) return;
 
     const boardRect = boardRef.current.getBoundingClientRect();
-    const position = getGridPositionFromMouse(e.clientX, e.clientY, boardRect);
+    const gridX = Math.floor((e.clientX - boardRect.left) / cellSize);
+    const gridY = Math.floor((e.clientY - boardRect.top) / cellSize);
+    const position =
+      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
+        ? { x: gridX, y: gridY }
+        : null;
 
     if (position) {
       onPiecePlace(position, pieceId);
@@ -122,8 +222,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
       );
 
     const cellStyle = {
-      width: CELL_SIZE,
-      height: CELL_SIZE,
+      width: cellSize,
+      height: cellSize,
       backgroundColor: cell.filled ? cell.color : "#2a2a2a",
       border: "1px solid #444",
       position: "relative" as const,
@@ -147,10 +247,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
         className="sudoku-block-border"
         style={{
           position: "absolute",
-          left: block.startCol * CELL_SIZE,
-          top: block.startRow * CELL_SIZE,
-          width: 3 * CELL_SIZE,
-          height: 3 * CELL_SIZE,
+          left: block.startCol * cellSize,
+          top: block.startRow * cellSize,
+          width: 3 * cellSize,
+          height: 3 * cellSize,
           border: "2px solid #666",
           pointerEvents: "none",
           zIndex: 1,
@@ -172,9 +272,16 @@ const GameBoard: React.FC<GameBoardProps> = ({
         key={`hover-${index}`}
         className="hover-piece"
         style={{
-          left: pos.x * CELL_SIZE,
-          top: pos.y * CELL_SIZE,
+          position: "absolute",
+          left: pos.x * cellSize,
+          top: pos.y * cellSize,
+          width: cellSize,
+          height: cellSize,
           backgroundColor: piece.color,
+          opacity: 0.6,
+          border: "2px dashed #fff",
+          zIndex: 5,
+          pointerEvents: "none",
         }}
       />
     ));
@@ -187,8 +294,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
         className="game-board"
         style={{
           position: "relative",
-          width: GRID_WIDTH * CELL_SIZE,
-          height: GRID_HEIGHT * CELL_SIZE,
+          width: GRID_WIDTH * cellSize,
+          height: GRID_HEIGHT * cellSize,
           border: "2px solid #fff",
           backgroundColor: "#1a1a1a",
           cursor: selectedPiece ? "crosshair" : "default",
@@ -200,6 +307,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
       >
         {renderSudokuBlockBorders()}
         {grid.map((row, rowIndex) =>
