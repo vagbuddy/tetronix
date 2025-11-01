@@ -3,6 +3,7 @@ import { useGameState } from "../hooks/useGameState";
 import GameBoard from "./GameBoard";
 import PieceSelection from "./PieceSelection";
 import GameInfo from "./GameInfo";
+import ScoreCorner from "./ScoreCorner";
 import "./Game.css";
 
 const Game: React.FC = () => {
@@ -21,6 +22,7 @@ const Game: React.FC = () => {
 
   return (
     <div className="game-container">
+      <ScoreCorner score={state.score} />
       {/* <div className="game-header">
         <h1>Sudoku Tetris Puzzle</h1>
         <p>Drag and drop Tetris pieces to fill the Sudoku board!</p>
