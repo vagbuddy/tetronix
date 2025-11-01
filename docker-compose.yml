@@ -1,0 +1,16 @@
+services:
+  app:
+    image: node:18-alpine
+    working_dir: /app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    environment:
+      - NODE_ENV=development
+      - CHOKIDAR_USEPOLLING=true
+    command: sh -c "apk add --no-cache npm && npm install && npm start"

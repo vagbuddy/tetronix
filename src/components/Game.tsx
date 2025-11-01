@@ -1,9 +1,9 @@
-import React from 'react';
-import { useGameState } from '../hooks/useGameState';
-import GameBoard from './GameBoard';
-import PieceSelection from './PieceSelection';
-import GameInfo from './GameInfo';
-import './Game.css';
+import React from "react";
+import { useGameState } from "../hooks/useGameState";
+import GameBoard from "./GameBoard";
+import PieceSelection from "./PieceSelection";
+import GameInfo from "./GameInfo";
+import "./Game.css";
 
 const Game: React.FC = () => {
   const {
@@ -16,16 +16,16 @@ const Game: React.FC = () => {
     endDrag,
     pause,
     resume,
-    restart
+    restart,
   } = useGameState();
 
   return (
     <div className="game-container">
-      <div className="game-header">
+      {/* <div className="game-header">
         <h1>Sudoku Tetris Puzzle</h1>
         <p>Drag and drop Tetris pieces to fill the Sudoku board!</p>
-      </div>
-      
+      </div> */}
+
       <div className="game-content">
         <div className="game-main">
           <GameBoard
@@ -35,7 +35,7 @@ const Game: React.FC = () => {
             onPiecePlace={placePiece}
             onPieceDeselect={deselectPiece}
           />
-          
+
           <PieceSelection
             pieces={state.availablePieces}
             selectedPiece={state.selectedPiece}
@@ -45,8 +45,8 @@ const Game: React.FC = () => {
             onEndDrag={endDrag}
           />
         </div>
-        
-        <div className="game-sidebar">
+
+        {/* <div className="game-sidebar">
           <GameInfo
             score={state.score}
             level={state.level}
@@ -57,9 +57,9 @@ const Game: React.FC = () => {
             onResume={resume}
             onRestart={restart}
           />
-        </div>
+        </div> */}
       </div>
-      
+
       {state.paused && (
         <div className="pause-overlay">
           <div className="pause-content">
@@ -68,7 +68,6 @@ const Game: React.FC = () => {
           </div>
         </div>
       )}
-      
     </div>
   );
 };
