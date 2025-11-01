@@ -34,9 +34,13 @@
   position: relative;
   min-width: 120px;
   text-align: center;
-  /* Prevent touch scrolling while dragging */
+  /* Prevent touch scrolling while dragging - keep for modern browsers */
   -ms-touch-action: none;
-  touch-action: none;
+  -webkit-touch-action: none;
+  touch-action: none; /* Not supported in iOS Safari < 13 - requires JS fallback (touchstart/touchmove preventDefault) */
+  /* iOS < 13 fallback - handle via JS touchstart/touchmove preventDefault */
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .piece-container:active {

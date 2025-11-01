@@ -3,6 +3,7 @@
   padding: 20px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.2);
+  -webkit-backdrop-filter: blur(5px);
   backdrop-filter: blur(5px);
 }
 
@@ -21,6 +22,9 @@
   gap: 0;
   margin: 0 auto;
   position: relative;
+  /* Shadow around the composed figure so it pops on mobile too */
+  -webkit-filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
 }
 
 .preview-cell {
