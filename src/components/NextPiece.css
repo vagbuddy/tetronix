@@ -22,9 +22,9 @@
   gap: 0;
   margin: 0 auto;
   position: relative;
-  /* Shadow around the composed figure so it pops on mobile too */
-  -webkit-filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
-  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
+  /* Give the whole figure a subtle shadow so individual transparent cells don't break it */
+  /* -webkit-filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45));
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45)); */
 }
 
 .preview-cell {

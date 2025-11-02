@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { DEBUG_ANCHOR } from "../config/DebugFlags";
 import { createPortal } from "react-dom";
 import { DragSourceMonitor } from "react-dnd";
 import { useDrag } from "react-dnd/dist/hooks/useDrag";
@@ -10,6 +11,8 @@ type DragItem = {
   instanceId: string;
   piece: TetrisPiece;
 };
+
+type Anchor = { row: number; col: number };
 
 interface PieceSelectionProps {
   pieces: TetrisPiece[];
@@ -28,6 +31,7 @@ const DraggablePiece: React.FC<{
   onPieceRotate: (pieceId: string) => void;
   setDraggedPiece: (piece: TetrisPiece | null) => void;
   setPointerPos: (pos: { x: number; y: number } | null) => void;
+  setDragAnchor: (anchor: Anchor | null) => void;
   onStartDrag: (piece: TetrisPiece) => void;
   onEndDrag: () => void;
 }> = ({
@@ -37,6 +41,7 @@ const DraggablePiece: React.FC<{
   onPieceRotate,
   setDraggedPiece,
   setPointerPos,
+  setDragAnchor,
   onStartDrag,
   onEndDrag,
 }) => {
@@ -59,9 +64,56 @@ const DraggablePiece: React.FC<{
     },
   });
 
+  const previewRef = useRef<HTMLDivElement>(null);
+  const anchorRef = useRef<Anchor | null>(null);
+
+  // Ensure the anchor points to a filled cell in the shape; if user tapped an empty
+  // spot inside the 3x3, snap to the nearest filled cell by Manhattan distance.
+  const resolveFilledAnchor = (desired: Anchor): Anchor => {
+    const h = piece.shape.length;
+    const w = piece.shape[0]?.length || 0;
+    if (
+      desired.row >= 0 &&
+      desired.row < h &&
+      desired.col >= 0 &&
+      desired.col < w &&
+      piece.shape[desired.row][desired.col]
+    ) {
+      return desired;
+    }
+    let best: Anchor | null = null;
+    let bestDist = Infinity;
+    for (let r = 0; r < h; r++) {
+      for (let c = 0; c < w; c++) {
+        if (piece.shape[r][c]) {
+          const dist = Math.abs(r - desired.row) + Math.abs(c - desired.col);
+          if (dist < bestDist) {
+            bestDist = dist;
+            best = { row: r, col: c };
+          }
+        }
+      }
+    }
+    return best || { row: 1, col: 1 };
+  };
+
   const handlePointerMove = (e: PointerEvent) => {
     e.preventDefault();
     setPointerPos({ x: e.clientX, y: e.clientY });
+    try {
+      const detail = {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        pieceId: piece.instanceId,
+        anchorRow: anchorRef.current?.row,
+        anchorCol: anchorRef.current?.col,
+      };
+      window.dispatchEvent(
+        new CustomEvent("sudoku-tetris-piece-hover", { detail })
+      );
+    } catch (err) {
+      // ignore
+    }
   };
 
   const handlePointerUp = (e: PointerEvent) => {
@@ -71,6 +123,8 @@ const DraggablePiece: React.FC<{
         clientX: e.clientX,
         clientY: e.clientY,
         pieceId: piece.instanceId,
+        anchorRow: anchorRef.current?.row,
+        anchorCol: anchorRef.current?.col,
       };
       window.dispatchEvent(
         new CustomEvent("sudoku-tetris-piece-drop", { detail })
@@ -80,6 +134,8 @@ const DraggablePiece: React.FC<{
     }
     setDraggedPiece(null);
     setPointerPos(null);
+    setDragAnchor(null);
+    anchorRef.current = null;
     window.removeEventListener("pointermove", handlePointerMove);
     window.removeEventListener("pointerup", handlePointerUp);
     onEndDrag();
@@ -87,10 +143,35 @@ const DraggablePiece: React.FC<{
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (piece.isPlaced) return;
+    // If the user tapped the rotate button, don't initiate drag
+    const target = e.target as HTMLElement;
+    if (target && target.closest(".rotate-button")) {
+      return;
+    }
 
     // Only prevent default on touch to allow native drag on desktop
     if ((e as any).pointerType === "touch") {
       e.preventDefault();
+      // compute which cell within the preview was tapped
+      const rect = previewRef.current?.getBoundingClientRect();
+      if (rect) {
+        const cellPx = CELL_SIZE * 0.5;
+        const col = Math.max(
+          0,
+          Math.min(2, Math.floor((e.clientX - rect.left) / cellPx))
+        );
+        const row = Math.max(
+          0,
+          Math.min(2, Math.floor((e.clientY - rect.top) / cellPx))
+        );
+        const anchor = resolveFilledAnchor({ row, col });
+        anchorRef.current = anchor;
+        setDragAnchor(anchor);
+      } else {
+        const fallback = resolveFilledAnchor({ row: 1, col: 1 });
+        anchorRef.current = fallback;
+        setDragAnchor(fallback);
+      }
       setDraggedPiece(piece);
       setPointerPos({ x: e.clientX, y: e.clientY });
       window.addEventListener("pointermove", handlePointerMove);
@@ -100,11 +181,39 @@ const DraggablePiece: React.FC<{
   };
 
   const handleDragStart = (e: React.DragEvent) => {
+    // If starting drag from rotate button, cancel drag
+    const target = e.target as HTMLElement;
+    if (target && target.closest(".rotate-button")) {
+      try {
+        e.preventDefault();
+      } catch {}
+      return;
+    }
     try {
       e.dataTransfer.setData("text/plain", piece.instanceId);
       e.dataTransfer.effectAllowed = "copy";
     } catch (err) {
       // ignore
+    }
+    // attempt to compute anchor for mouse-drag as well
+    const rect = previewRef.current?.getBoundingClientRect();
+    if (rect) {
+      const cellPx = CELL_SIZE * 0.5;
+      const col = Math.max(
+        0,
+        Math.min(2, Math.floor((e.clientX - rect.left) / cellPx))
+      );
+      const row = Math.max(
+        0,
+        Math.min(2, Math.floor((e.clientY - rect.top) / cellPx))
+      );
+      const anchor = resolveFilledAnchor({ row, col });
+      anchorRef.current = anchor;
+      setDragAnchor(anchor);
+    } else {
+      const fallback = resolveFilledAnchor({ row: 1, col: 1 });
+      anchorRef.current = fallback;
+      setDragAnchor(fallback);
     }
     onStartDrag(piece);
   };
@@ -132,6 +241,11 @@ const DraggablePiece: React.FC<{
         {!isPlaced && (
           <button
             className="rotate-button"
+            onPointerDown={(e) => {
+              // Prevent drag starting from rotate button on touch
+              e.preventDefault();
+              e.stopPropagation();
+            }}
             onClick={(e) => {
               e.stopPropagation();
               onPieceRotate(piece.instanceId);
@@ -149,6 +263,7 @@ const DraggablePiece: React.FC<{
           height: 3 * CELL_SIZE * 0.5,
           position: "relative",
         }}
+        ref={previewRef}
       >
         {piece.shape.map((row: number[], rowIndex: number) => (
           <React.Fragment key={rowIndex}>
@@ -173,32 +288,6 @@ const DraggablePiece: React.FC<{
       </div>
 
       {isPlaced && <div className="placed-indicator">✓</div>}
-
-      {/* Mobile controls: visible on small screens */}
-      <div className="mobile-controls">
-        {!isPlaced && (
-          <button
-            className="select-button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPieceClick(piece);
-            }}
-          >
-            Select
-          </button>
-        )}
-        {!isPlaced && (
-          <button
-            className="rotate-button mobile-rotate"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPieceRotate(piece.instanceId);
-            }}
-          >
-            ↻
-          </button>
-        )}
-      </div>
     </div>
   );
 };
@@ -215,6 +304,7 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
   const [pointerPos, setPointerPos] = useState<{ x: number; y: number } | null>(
     null
   );
+  const [dragAnchor, setDragAnchor] = useState<Anchor | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement>(null);
 
   const renderDragPreview = () => {
@@ -226,8 +316,8 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
         className="drag-preview"
         style={{
           position: "fixed",
-          left: pointerPos.x - 1.5 * CELL_SIZE,
-          top: pointerPos.y - 1.5 * CELL_SIZE,
+          left: pointerPos.x - ((dragAnchor?.col ?? 1) + 0.5) * CELL_SIZE,
+          top: pointerPos.y - ((dragAnchor?.row ?? 1) + 0.5) * CELL_SIZE,
           width: 3 * CELL_SIZE,
           height: 3 * CELL_SIZE,
           pointerEvents: "none",
@@ -239,7 +329,15 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
             {row.map((cell: number, colIndex: number) => (
               <div
                 key={`${rowIndex}-${colIndex}`}
-                className="preview-cell"
+                className={`preview-cell ${
+                  DEBUG_ANCHOR &&
+                  dragAnchor &&
+                  cell &&
+                  rowIndex === dragAnchor.row &&
+                  colIndex === dragAnchor.col
+                    ? "anchor-debug"
+                    : ""
+                }`}
                 style={{
                   position: "absolute",
                   left: colIndex * CELL_SIZE,
@@ -272,6 +370,7 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
             onPieceRotate={onPieceRotate}
             setDraggedPiece={setDraggedPiece}
             setPointerPos={setPointerPos}
+            setDragAnchor={setDragAnchor}
             onStartDrag={onStartDrag}
             onEndDrag={onEndDrag}
           />

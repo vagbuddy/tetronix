@@ -9,6 +9,9 @@ import {
   SUDOKU_BLOCKS,
 } from "../utils/GameLogic";
 import "./GameBoard.css";
+import { DEBUG_ANCHOR } from "../config/DebugFlags";
+
+type Anchor = { row: number; col: number };
 
 interface GameBoardProps {
   grid: Cell[][];
@@ -32,11 +35,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
   } | null>(null);
   const [draggedPiece, setDraggedPiece] = useState<TetrisPiece | null>(null);
   const [cellSize, setCellSize] = useState<number>(CELL_SIZE);
+  const [hoverAnchor, setHoverAnchor] = useState<Anchor | null>(null);
+  const [isExternalDrag, setIsExternalDrag] = useState<boolean>(false);
+  const [suppressClickUntil, setSuppressClickUntil] = useState<number>(0);
 
   const getTopLeftFromClient = (
     clientX: number,
     clientY: number,
-    piece?: TetrisPiece | null
+    piece?: TetrisPiece | null,
+    anchor?: { row: number; col: number } | null
   ) => {
     if (!boardRef.current || !piece) return null;
     const boardRect = boardRef.current.getBoundingClientRect();
@@ -68,19 +75,27 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const pw = maxCol - minCol + 1;
     const ph = maxRow - minRow + 1;
 
-    // Align the piece so its center (in grid coords) is as close as possible to the
-    // pointer fractional position. This matches a preview that's centered on the pointer.
-    // Compute centered top-left, round to nearest integer, then clamp to board bounds.
-    const centerOffsetX = (pw - 1) / 2;
-    const centerOffsetY = (ph - 1) / 2;
-    // desired occupied-top-left (where the bounding box should be placed)
-    let occX = Math.round(fx - centerOffsetX);
-    let occY = Math.round(fy - centerOffsetY);
-    occX = Math.max(0, Math.min(GRID_WIDTH - pw, occX));
-    occY = Math.max(0, Math.min(GRID_HEIGHT - ph, occY));
-    // convert occupied-top-left to shape-top-left by subtracting min offsets
-    const shapeX = occX - minCol;
-    const shapeY = occY - minRow;
+    let shapeX: number;
+    let shapeY: number;
+    if (anchor) {
+      // Align the selected cell (anchor) of the shape with the grid cell under the pointer
+      // Since the pointer is positioned over the center of a cell in the drag preview,
+      // use floor to map to the correct grid index rather than rounding to the next cell.
+      const occX = Math.floor(fx);
+      const occY = Math.floor(fy);
+      shapeX = occX - anchor.col;
+      shapeY = occY - anchor.row;
+    } else {
+      // Center the piece on the pointer by default
+      const centerOffsetX = (pw - 1) / 2;
+      const centerOffsetY = (ph - 1) / 2;
+      // desired occupied-top-left (where the bounding box should be placed)
+      const occX = Math.round(fx - centerOffsetX);
+      const occY = Math.round(fy - centerOffsetY);
+      // convert occupied-top-left to shape-top-left by subtracting min offsets
+      shapeX = occX - minCol;
+      shapeY = occY - minRow;
+    }
     // clamp shape top-left so shape indices remain within board
     const minShapeX = -minCol;
     const maxShapeX = GRID_WIDTH - (maxCol + 1);
@@ -112,27 +127,104 @@ const GameBoard: React.FC<GameBoardProps> = ({
         clientX: number;
         clientY: number;
         pieceId: string | null;
+        anchorRow?: number;
+        anchorCol?: number;
       };
       if (!detail || !boardRef.current) return;
+      // Ignore drops that occur outside the board bounds
+      const rect = boardRef.current.getBoundingClientRect();
+      const inside =
+        detail.clientX >= rect.left &&
+        detail.clientX <= rect.right &&
+        detail.clientY >= rect.top &&
+        detail.clientY <= rect.bottom;
+      if (!inside) {
+        setHoverPosition(null);
+        setDraggedPiece(null);
+        setHoverAnchor(null);
+        setIsExternalDrag(false);
+        return;
+      }
       const piece =
         availablePieces.find((p) => p.instanceId === detail.pieceId) ||
         selectedPiece;
       const topLeft = getTopLeftFromClient(
         detail.clientX,
         detail.clientY,
-        piece
+        piece,
+        detail.anchorRow !== undefined && detail.anchorCol !== undefined
+          ? { row: detail.anchorRow, col: detail.anchorCol }
+          : null
       );
       if (topLeft) {
         onPiecePlace(topLeft, detail.pieceId ?? undefined);
       }
       setHoverPosition(null);
       setDraggedPiece(null);
+      setHoverAnchor(null);
+      setIsExternalDrag(false);
+      // Prevent the synthetic click that follows touchend from placing again
+      setSuppressClickUntil(Date.now() + 400);
+    };
+    const handleExternalHover = (ev: Event) => {
+      const custom = ev as CustomEvent;
+      const detail = custom.detail as {
+        clientX: number;
+        clientY: number;
+        pieceId: string | null;
+        anchorRow?: number;
+        anchorCol?: number;
+      };
+      if (!detail || !boardRef.current) return;
+      // Clear hover if pointer is outside the board bounds
+      const rect = boardRef.current.getBoundingClientRect();
+      const inside =
+        detail.clientX >= rect.left &&
+        detail.clientX <= rect.right &&
+        detail.clientY >= rect.top &&
+        detail.clientY <= rect.bottom;
+      if (!inside) {
+        setHoverPosition(null);
+        setHoverAnchor(null);
+        setIsExternalDrag(true); // still dragging, but not over board
+        return;
+      }
+      const piece =
+        availablePieces.find((p) => p.instanceId === detail.pieceId) ||
+        selectedPiece;
+      const topLeft = getTopLeftFromClient(
+        detail.clientX,
+        detail.clientY,
+        piece,
+        detail.anchorRow !== undefined && detail.anchorCol !== undefined
+          ? { row: detail.anchorRow, col: detail.anchorCol }
+          : null
+      );
+      setHoverPosition(topLeft);
+      if (piece) setDraggedPiece(piece);
+      if (detail.anchorRow !== undefined && detail.anchorCol !== undefined) {
+        setHoverAnchor({ row: detail.anchorRow, col: detail.anchorCol });
+      }
     };
     window.addEventListener(
       "sudoku-tetris-piece-drop",
       handleExternalDrop as EventListener
     );
-    return () => window.removeEventListener("resize", updateCellSize);
+    window.addEventListener(
+      "sudoku-tetris-piece-hover",
+      handleExternalHover as EventListener
+    );
+    return () => {
+      window.removeEventListener("resize", updateCellSize);
+      window.removeEventListener(
+        "sudoku-tetris-piece-drop",
+        handleExternalDrop as EventListener
+      );
+      window.removeEventListener(
+        "sudoku-tetris-piece-hover",
+        handleExternalHover as EventListener
+      );
+    };
   }, []);
 
   // react-dnd drop target: handles hover and drop when using react-dnd backends
@@ -217,13 +309,20 @@ const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    if (!selectedPiece || !boardRef.current) return;
-    const topLeft = getTopLeftFromClient(e.clientX, e.clientY, selectedPiece);
-    if (topLeft) {
-      onPiecePlace(topLeft);
+    if (!boardRef.current) return;
+    // Avoid double placement when using external touch drag/drop
+    if ((e as any).pointerType === "touch" || isExternalDrag) {
+      setHoverPosition(null);
+      setDraggedPiece(null);
+      setHoverAnchor(null);
+      return;
     }
+    if (!selectedPiece) return;
+    const topLeft = getTopLeftFromClient(e.clientX, e.clientY, selectedPiece);
+    if (topLeft) onPiecePlace(topLeft);
     setHoverPosition(null);
     setDraggedPiece(null);
+    setHoverAnchor(null);
   };
 
   const handleMouseMove = (event: React.MouseEvent) => {
@@ -253,10 +352,19 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   const handleMouseLeave = () => {
     setHoverPosition(null);
+    setHoverAnchor(null);
+    setIsExternalDrag(false);
   };
 
   const handleClick = (event: React.MouseEvent) => {
-    if (!selectedPiece || !boardRef.current) return;
+    // Ignore click if coming from an external drag flow or within suppression window
+    if (
+      isExternalDrag ||
+      Date.now() < suppressClickUntil ||
+      !selectedPiece ||
+      !boardRef.current
+    )
+      return;
     // For click placement we use the top-left computed from the click position
     const topLeft = getTopLeftFromClient(
       event.clientX,
@@ -381,25 +489,36 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const piece = selectedPiece || draggedPiece;
 
     if (!piece) return null;
-
-    return getPieceCells(piece, hoverPosition).map((pos, index) => (
-      <div
-        key={`hover-${index}`}
-        className="hover-piece"
-        style={{
-          position: "absolute",
-          left: pos.x * cellSize,
-          top: pos.y * cellSize,
-          width: cellSize,
-          height: cellSize,
-          backgroundColor: piece.color,
-          opacity: 0.6,
-          border: "2px dashed #fff",
-          zIndex: 5,
-          pointerEvents: "none",
-        }}
-      />
-    ));
+    const nodes: React.ReactNode[] = [];
+    for (let r = 0; r < piece.shape.length; r++) {
+      for (let c = 0; c < piece.shape[r].length; c++) {
+        if (!piece.shape[r][c]) continue;
+        const isAnchor =
+          DEBUG_ANCHOR &&
+          hoverAnchor &&
+          r === hoverAnchor.row &&
+          c === hoverAnchor.col;
+        nodes.push(
+          <div
+            key={`hover-${r}-${c}`}
+            className={`hover-piece ${isAnchor ? "anchor-debug" : ""}`}
+            style={{
+              position: "absolute",
+              left: (hoverPosition.x + c) * cellSize,
+              top: (hoverPosition.y + r) * cellSize,
+              width: cellSize,
+              height: cellSize,
+              backgroundColor: piece.color,
+              opacity: 0.6,
+              border: "2px dashed #fff",
+              zIndex: 5,
+              pointerEvents: "none",
+            }}
+          />
+        );
+      }
+    }
+    return nodes;
   };
 
   return (

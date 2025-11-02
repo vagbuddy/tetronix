@@ -98,6 +98,12 @@
   animation: hoverGlow 0.5s ease-in-out infinite alternate;
 }
 
+/* Debug: red outline on the anchor block of the hover shadow */
+.hover-piece.anchor-debug {
+  outline: 3px solid red;
+  outline-offset: -3px;
+}
+
 @keyframes hoverGlow {
   0% { box-shadow: 0 0 10px rgba(255, 255, 255, 0.3); }
   100% { box-shadow: 0 0 20px rgba(255, 255, 255, 0.6); }
