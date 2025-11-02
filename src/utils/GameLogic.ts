@@ -243,6 +243,18 @@ export const checkFullRows = (grid: Cell[][]): number[] => {
   return fullRows;
 };
 
+export const checkFullCols = (grid: Cell[][]): number[] => {
+  const fullCols: number[] = [];
+
+  for (let col = 0; col < GRID_WIDTH; col++) {
+    if (grid.every((cell) => cell[col].filled)) {
+      fullCols.push(col);
+    }
+  }
+
+  return fullCols;
+};
+
 export const checkFullSudokuBlocks = (grid: Cell[][]): SudokuBlock[] => {
   const fullBlocks: SudokuBlock[] = [];
 
@@ -262,6 +274,19 @@ export const clearRows = (grid: Cell[][], rows: number[]): Cell[][] => {
   rows.forEach((rowIndex) => {
     for (let col = 0; col < GRID_WIDTH; col++) {
       newGrid[rowIndex][col] = { filled: false };
+    }
+  });
+
+  return newGrid;
+};
+
+export const clearCols = (grid: Cell[][], cols: number[]): Cell[][] => {
+  let newGrid = grid.map((col) => col.map((cell) => ({ ...cell })));
+
+  // Clear full cols
+  cols.forEach((colIndex) => {
+    for (let row = 0; row < GRID_HEIGHT; row++) {
+      newGrid[row][colIndex] = { filled: false };
     }
   });
 

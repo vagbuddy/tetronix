@@ -7,8 +7,10 @@ import {
   isValidPlacement,
   placePieceOnGrid,
   checkFullRows,
+  checkFullCols,
   checkFullSudokuBlocks,
   clearRows,
+  clearCols,
   clearSudokuBlocks,
   calculateScore,
 } from "../utils/GameLogic";
@@ -80,6 +82,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 
       // Check for line and block clears
       const fullRows = checkFullRows(newGrid);
+      const fullCols = checkFullCols(newGrid);
       const fullSudokuBlocks = checkFullSudokuBlocks(newGrid);
 
       let finalGrid = newGrid;
@@ -90,6 +93,12 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       if (fullRows.length > 0) {
         finalGrid = clearRows(finalGrid, fullRows);
         linesIncrease = fullRows.length;
+      }
+
+      // Clear full cols
+      if (fullCols.length > 0) {
+        finalGrid = clearCols(finalGrid, fullCols);
+        linesIncrease = fullCols.length;
       }
 
       // Clear full sudoku blocks
