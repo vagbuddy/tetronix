@@ -122,17 +122,22 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     }
 
     case "ROTATE_PIECE": {
-      const updatedPieces = state.availablePieces.map((piece) =>
-        piece.instanceId === action.pieceId ? rotatePiece(piece) : piece
-      );
+      let newSelected = state.selectedPiece;
+      const updatedPieces = state.availablePieces.map((piece) => {
+        if (piece.instanceId === action.pieceId) {
+          const rotated = rotatePiece(piece);
+          if (state.selectedPiece?.instanceId === action.pieceId) {
+            newSelected = rotated;
+          }
+          return rotated;
+        }
+        return piece;
+      });
 
       return {
         ...state,
         availablePieces: updatedPieces,
-        selectedPiece:
-          state.selectedPiece?.instanceId === action.pieceId
-            ? rotatePiece(state.selectedPiece)
-            : state.selectedPiece,
+        selectedPiece: newSelected,
       };
     }
 

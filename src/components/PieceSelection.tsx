@@ -231,9 +231,9 @@ const DraggablePiece: React.FC<{
         isPlaced ? "placed" : ""
       }`}
       onClick={() => !isPlaced && onPieceClick(piece)}
-      draggable={!isPlaced}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
+      // Disable native HTML5 drag to avoid conflicts with react-dnd positioning
+      draggable={false}
+      // onDragStart/onDragEnd intentionally omitted to prevent native drag path
       onPointerDown={handlePointerDown}
     >
       <div className="piece-header">
@@ -248,6 +248,14 @@ const DraggablePiece: React.FC<{
             }}
             onClick={(e) => {
               e.stopPropagation();
+              // Rotate local drag anchor so the touched cell remains under the finger
+              if (anchorRef.current) {
+                const { row, col } = anchorRef.current;
+                // 90deg clockwise rotation in 3x3: (r, c) -> (c, 2 - r)
+                const rotated = { row: col, col: 2 - row };
+                anchorRef.current = rotated;
+                setDragAnchor(rotated);
+              }
               onPieceRotate(piece.instanceId);
             }}
           >

@@ -7,9 +7,10 @@ import {
   GRID_HEIGHT,
   CELL_SIZE,
   SUDOKU_BLOCKS,
+  isValidPlacement,
 } from "../utils/GameLogic";
 import "./GameBoard.css";
-import { DEBUG_ANCHOR } from "../config/DebugFlags";
+import { DEBUG_ANCHOR, DEBUG_OVERLAY } from "../config/DebugFlags";
 
 type Anchor = { row: number; col: number };
 
@@ -38,6 +39,25 @@ const GameBoard: React.FC<GameBoardProps> = ({
   const [hoverAnchor, setHoverAnchor] = useState<Anchor | null>(null);
   const [isExternalDrag, setIsExternalDrag] = useState<boolean>(false);
   const [suppressClickUntil, setSuppressClickUntil] = useState<number>(0);
+  const lastHoverRef = useRef<{
+    pos: { x: number; y: number } | null;
+    anchor: Anchor | null;
+    pieceId: string | null;
+  } | null>(null);
+
+  // Refs to hold the latest state for external event handlers
+  const gridRef = useRef(grid);
+  const availablePiecesRef = useRef(availablePieces);
+  const selectedPieceRef = useRef(selectedPiece);
+  useEffect(() => {
+    gridRef.current = grid;
+  }, [grid]);
+  useEffect(() => {
+    availablePiecesRef.current = availablePieces;
+  }, [availablePieces]);
+  useEffect(() => {
+    selectedPieceRef.current = selectedPiece;
+  }, [selectedPiece]);
 
   const getTopLeftFromClient = (
     clientX: number,
@@ -89,21 +109,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
       // Center the piece on the pointer by default
       const centerOffsetX = (pw - 1) / 2;
       const centerOffsetY = (ph - 1) / 2;
-      // desired occupied-top-left (where the bounding box should be placed)
-      const occX = Math.round(fx - centerOffsetX);
-      const occY = Math.round(fy - centerOffsetY);
+      // Use floor instead of round so skinny shapes (like vertical I with pw=1)
+      // can reach board edges consistently.
+      const occX = Math.floor(fx - centerOffsetX);
+      const occY = Math.floor(fy - centerOffsetY);
       // convert occupied-top-left to shape-top-left by subtracting min offsets
       shapeX = occX - minCol;
       shapeY = occY - minRow;
     }
-    // clamp shape top-left so shape indices remain within board
-    const minShapeX = -minCol;
-    const maxShapeX = GRID_WIDTH - (maxCol + 1);
-    const minShapeY = -minRow;
-    const maxShapeY = GRID_HEIGHT - (maxRow + 1);
-    const finalX = Math.max(minShapeX, Math.min(maxShapeX, shapeX));
-    const finalY = Math.max(minShapeY, Math.min(maxShapeY, shapeY));
-    return { x: finalX, y: finalY };
+    // Do NOT clamp shape top-left here. Allow the shape's zero-cells to go
+    // outside the board. Placement will be validated later by checking that
+    // all filled (1) cells are within bounds.
+    return { x: shapeX, y: shapeY };
   };
 
   useEffect(() => {
@@ -143,20 +160,20 @@ const GameBoard: React.FC<GameBoardProps> = ({
         setDraggedPiece(null);
         setHoverAnchor(null);
         setIsExternalDrag(false);
+        lastHoverRef.current = null;
         return;
       }
       const piece =
-        availablePieces.find((p) => p.instanceId === detail.pieceId) ||
-        selectedPiece;
-      const topLeft = getTopLeftFromClient(
-        detail.clientX,
-        detail.clientY,
-        piece,
-        detail.anchorRow !== undefined && detail.anchorCol !== undefined
-          ? { row: detail.anchorRow, col: detail.anchorCol }
-          : null
-      );
-      if (topLeft) {
+        availablePiecesRef.current.find(
+          (p) => p.instanceId === detail.pieceId
+        ) || selectedPieceRef.current;
+      // Strict: only place where the shadow was last shown; if none, do not place
+      const topLeft = lastHoverRef.current?.pos;
+      if (
+        topLeft &&
+        piece &&
+        isValidPlacement(piece, topLeft, gridRef.current)
+      ) {
         onPiecePlace(topLeft, detail.pieceId ?? undefined);
       }
       setHoverPosition(null);
@@ -165,6 +182,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
       setIsExternalDrag(false);
       // Prevent the synthetic click that follows touchend from placing again
       setSuppressClickUntil(Date.now() + 400);
+      lastHoverRef.current = null;
     };
     const handleExternalHover = (ev: Event) => {
       const custom = ev as CustomEvent;
@@ -187,11 +205,13 @@ const GameBoard: React.FC<GameBoardProps> = ({
         setHoverPosition(null);
         setHoverAnchor(null);
         setIsExternalDrag(true); // still dragging, but not over board
+        lastHoverRef.current = null;
         return;
       }
       const piece =
-        availablePieces.find((p) => p.instanceId === detail.pieceId) ||
-        selectedPiece;
+        availablePiecesRef.current.find(
+          (p) => p.instanceId === detail.pieceId
+        ) || selectedPieceRef.current;
       const topLeft = getTopLeftFromClient(
         detail.clientX,
         detail.clientY,
@@ -205,6 +225,15 @@ const GameBoard: React.FC<GameBoardProps> = ({
       if (detail.anchorRow !== undefined && detail.anchorCol !== undefined) {
         setHoverAnchor({ row: detail.anchorRow, col: detail.anchorCol });
       }
+      // Record the last valid hover so drop can use exactly what was shown
+      lastHoverRef.current = {
+        pos: topLeft,
+        anchor:
+          detail.anchorRow !== undefined && detail.anchorCol !== undefined
+            ? { row: detail.anchorRow, col: detail.anchorCol }
+            : null,
+        pieceId: detail.pieceId ?? null,
+      };
     };
     window.addEventListener(
       "sudoku-tetris-piece-drop",
@@ -232,6 +261,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
     () => ({
       accept: "PIECE",
       hover: (item: any, monitor: any) => {
+        if (isExternalDrag) return; // don't let dnd override touch-hover
         if (!boardRef.current) return;
         // obtain client coords from monitor with multiple fallbacks
         let client: { x: number; y: number } | null = null;
@@ -256,9 +286,16 @@ const GameBoard: React.FC<GameBoardProps> = ({
         const piece = item?.piece || selectedPiece;
         const topLeft = getTopLeftFromClient(client.x, client.y, piece);
         setHoverPosition(topLeft);
+        // Record last hover for consistent drop == shadow
+        lastHoverRef.current = {
+          pos: topLeft,
+          anchor: null,
+          pieceId: item?.instanceId || selectedPiece?.instanceId || null,
+        };
         if (item && item.piece) setDraggedPiece(item.piece);
       },
       drop: (item: any, monitor: any) => {
+        if (isExternalDrag) return; // use external drop path
         if (!boardRef.current) return;
         // obtain client coords from monitor with multiple fallbacks
         let client: { x: number; y: number } | null = null;
@@ -279,17 +316,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
             client = { x: init.x + diff.x, y: init.y + diff.y };
           }
         }
-        if (!client) return;
         const piece = item?.piece || selectedPiece;
-        const topLeft = getTopLeftFromClient(client.x, client.y, piece);
-        if (topLeft) {
+        // Strict: place exactly where the shadow last was
+        const topLeft = lastHoverRef.current?.pos || hoverPosition;
+        if (topLeft && piece && isValidPlacement(piece, topLeft, grid)) {
           onPiecePlace(topLeft, item?.instanceId);
         }
         setHoverPosition(null);
         setDraggedPiece(null);
+        lastHoverRef.current = null;
       },
     }),
-    [cellSize]
+    [cellSize, isExternalDrag, grid, selectedPiece]
   );
 
   // attach both boardRef and react-dnd drop ref to the board div
@@ -303,6 +341,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
 
   // Pointer drag for mobile/desktop
   const handlePointerMove = (e: React.PointerEvent) => {
+    // During mobile/touch drags we drive hover via external custom events
+    // to keep anchor alignment; don't override with centered math here.
+    if ((e as any).pointerType === "touch" || isExternalDrag) return;
+    // During react-dnd drags, use the dnd hover computations; don't override
+    if (draggedPiece) return;
     if (!selectedPiece || !boardRef.current) return;
     const topLeft = getTopLeftFromClient(e.clientX, e.clientY, selectedPiece);
     setHoverPosition(topLeft);
@@ -319,13 +362,17 @@ const GameBoard: React.FC<GameBoardProps> = ({
     }
     if (!selectedPiece) return;
     const topLeft = getTopLeftFromClient(e.clientX, e.clientY, selectedPiece);
-    if (topLeft) onPiecePlace(topLeft);
+    if (topLeft && isValidPlacement(selectedPiece, topLeft, grid)) {
+      onPiecePlace(topLeft);
+    }
     setHoverPosition(null);
     setDraggedPiece(null);
     setHoverAnchor(null);
   };
 
   const handleMouseMove = (event: React.MouseEvent) => {
+    if (isExternalDrag) return; // don't override touch-driven hover
+    if (draggedPiece) return; // don't override react-dnd hover
     // Touch drop for mobile
     const handleTouchEnd = (e: React.TouchEvent) => {
       if (!selectedPiece || !boardRef.current) return;
@@ -335,7 +382,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
         touch.clientY,
         selectedPiece
       );
-      if (topLeft) {
+      if (topLeft && isValidPlacement(selectedPiece, topLeft, grid)) {
         onPiecePlace(topLeft);
       }
       setHoverPosition(null);
@@ -360,6 +407,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
     // Ignore click if coming from an external drag flow or within suppression window
     if (
       isExternalDrag ||
+      draggedPiece ||
       Date.now() < suppressClickUntil ||
       !selectedPiece ||
       !boardRef.current
@@ -379,28 +427,32 @@ const GameBoard: React.FC<GameBoardProps> = ({
   };
 
   const handleDragOver = (e: React.DragEvent) => {
+    if (isExternalDrag) return; // ignore native dragover during touch flow
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
 
     if (!boardRef.current) return;
 
-    const boardRect = boardRef.current.getBoundingClientRect();
-    const gridX = Math.floor((e.clientX - boardRect.left) / cellSize);
-    const gridY = Math.floor((e.clientY - boardRect.top) / cellSize);
-    const position =
-      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
-        ? { x: gridX, y: gridY }
-        : null;
-    setHoverPosition(position);
-
-    // Find the dragged piece by instanceId
+    // Prefer using our consistent positioning helper so skinny pieces (like vertical I)
+    // can reach edges by allowing negative shape top-left when needed.
     const pieceId = e.dataTransfer.getData("text/plain");
-    if (pieceId && !draggedPiece) {
-      const piece = availablePieces.find((p) => p.instanceId === pieceId);
-      if (piece) {
-        setDraggedPiece(piece);
-      }
-    }
+    const piece =
+      (pieceId && availablePieces.find((p) => p.instanceId === pieceId)) ||
+      selectedPiece ||
+      null;
+    const topLeft = getTopLeftFromClient(
+      e.clientX,
+      e.clientY,
+      piece || undefined
+    );
+    setHoverPosition(topLeft);
+    // Record last hover for native path as well
+    lastHoverRef.current = {
+      pos: topLeft,
+      anchor: null,
+      pieceId: piece?.instanceId || null,
+    };
+    if (piece && !draggedPiece) setDraggedPiece(piece);
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
@@ -420,20 +472,19 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const pieceId = e.dataTransfer.getData("text/plain");
     if (!boardRef.current) return;
 
-    const boardRect = boardRef.current.getBoundingClientRect();
-    const gridX = Math.floor((e.clientX - boardRect.left) / cellSize);
-    const gridY = Math.floor((e.clientY - boardRect.top) / cellSize);
-    const position =
-      gridX >= 0 && gridX < GRID_WIDTH && gridY >= 0 && gridY < GRID_HEIGHT
-        ? { x: gridX, y: gridY }
-        : null;
-
-    if (position) {
-      onPiecePlace(position, pieceId);
+    // Use the same helper as hover so drop == shadow, including edge reaches
+    const piece =
+      (pieceId && availablePieces.find((p) => p.instanceId === pieceId)) ||
+      selectedPiece ||
+      null;
+    const topLeft = lastHoverRef.current?.pos;
+    if (topLeft && piece && isValidPlacement(piece, topLeft, grid)) {
+      onPiecePlace(topLeft, pieceId);
     }
 
     setHoverPosition(null);
     setDraggedPiece(null);
+    lastHoverRef.current = null;
   };
 
   const renderCell = (cell: Cell, row: number, col: number) => {
@@ -550,6 +601,52 @@ const GameBoard: React.FC<GameBoardProps> = ({
         )}
         {renderHoverPiece()}
       </div>
+      {DEBUG_OVERLAY && (
+        <div className="debug-overlay">
+          {(() => {
+            const piece = selectedPiece || draggedPiece;
+            const oob =
+              piece && hoverPosition
+                ? getPieceCells(piece, hoverPosition).filter(
+                    (pos) =>
+                      pos.x < 0 ||
+                      pos.x >= GRID_WIDTH ||
+                      pos.y < 0 ||
+                      pos.y >= GRID_HEIGHT
+                  ).length
+                : null;
+            return (
+              <div className="row">
+                <span className="label">oob:</span> {oob ?? "-"}
+              </div>
+            );
+          })()}
+          <div className="row">
+            <span className="label">hover:</span>{" "}
+            {hoverPosition ? `x:${hoverPosition.x}, y:${hoverPosition.y}` : "-"}
+          </div>
+          <div className="row">
+            <span className="label">anchor:</span>{" "}
+            {hoverAnchor ? `r:${hoverAnchor.row}, c:${hoverAnchor.col}` : "-"}
+          </div>
+          <div className="row">
+            <span className="label">lastHover:</span>{" "}
+            {lastHoverRef.current?.pos
+              ? `x:${lastHoverRef.current?.pos?.x}, y:${lastHoverRef.current?.pos?.y}`
+              : "-"}
+          </div>
+          <div className="row">
+            <span className="label">lastAnchor:</span>{" "}
+            {lastHoverRef.current?.anchor
+              ? `r:${lastHoverRef.current?.anchor?.row}, c:${lastHoverRef.current?.anchor?.col}`
+              : "-"}
+          </div>
+          <div className="row">
+            <span className="label">piece:</span>{" "}
+            {selectedPiece?.instanceId || draggedPiece?.instanceId || "-"}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
