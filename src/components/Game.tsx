@@ -5,6 +5,7 @@ import PieceSelection from "./PieceSelection";
 import GameInfo from "./GameInfo";
 import ScoreCorner from "./ScoreCorner";
 import "./Game.css";
+import { isMobile } from "../utils/DeviceDetection";
 
 const Game: React.FC = () => {
   const {
@@ -23,10 +24,12 @@ const Game: React.FC = () => {
   return (
     <div className="game-container">
       <ScoreCorner score={state.score} />
-      {/* <div className="game-header">
-        <h1>Sudoku Tetris Puzzle</h1>
-        <p>Drag and drop Tetris pieces to fill the Sudoku board!</p>
-      </div> */}
+      {!isMobile() && (
+        <div className="game-header">
+          <h1>Sudoku Tetris Puzzle</h1>
+          <p>Drag and drop Tetris pieces to fill the Sudoku board!</p>
+        </div>
+      )}
 
       <div className="game-content">
         <div className="game-main">
@@ -48,18 +51,20 @@ const Game: React.FC = () => {
           />
         </div>
 
-        {/* <div className="game-sidebar">
-          <GameInfo
-            score={state.score}
-            level={state.level}
-            linesCleared={state.linesCleared}
-            gameOver={state.gameOver}
-            paused={state.paused}
-            onPause={pause}
-            onResume={resume}
-            onRestart={restart}
-          />
-        </div> */}
+        {!isMobile() && (
+          <div className="game-sidebar">
+            <GameInfo
+              score={state.score}
+              level={state.level}
+              linesCleared={state.linesCleared}
+              gameOver={state.gameOver}
+              paused={state.paused}
+              onPause={pause}
+              onResume={resume}
+              onRestart={restart}
+            />
+          </div>
+        )}
       </div>
 
       {state.paused && (

@@ -251,8 +251,9 @@ const DraggablePiece: React.FC<{
               // Rotate local drag anchor so the touched cell remains under the finger
               if (anchorRef.current) {
                 const { row, col } = anchorRef.current;
-                // 90deg clockwise rotation in 3x3: (r, c) -> (c, 2 - r)
-                const rotated = { row: col, col: 2 - row };
+                // 90deg clockwise rotation in NxN: (r, c) -> (c, N-1 - r)
+                const size = piece.shape.length - 1;
+                const rotated = { row: col, col: size - row };
                 anchorRef.current = rotated;
                 setDragAnchor(rotated);
               }
@@ -267,8 +268,8 @@ const DraggablePiece: React.FC<{
       <div
         className="piece-preview"
         style={{
-          width: 3 * CELL_SIZE * 0.5,
-          height: 3 * CELL_SIZE * 0.5,
+          width: piece.shape[0].length * CELL_SIZE * 0.5,
+          height: piece.shape.length * CELL_SIZE * 0.5,
           position: "relative",
         }}
         ref={previewRef}
@@ -318,16 +319,24 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
   const renderDragPreview = () => {
     if (!draggedPiece || !pointerPos || typeof document === "undefined")
       return null;
+    const shapeWidth = draggedPiece.shape[0].length;
+    const shapeHeight = draggedPiece.shape.length;
+    const defaultAnchorCol = Math.floor((shapeWidth - 1) / 2);
+    const defaultAnchorRow = Math.floor((shapeHeight - 1) / 2);
     const preview = (
       <div
         ref={dragPreviewRef}
         className="drag-preview"
         style={{
           position: "fixed",
-          left: pointerPos.x - ((dragAnchor?.col ?? 1) + 0.5) * CELL_SIZE,
-          top: pointerPos.y - ((dragAnchor?.row ?? 1) + 0.5) * CELL_SIZE,
-          width: 3 * CELL_SIZE,
-          height: 3 * CELL_SIZE,
+          left:
+            pointerPos.x -
+            ((dragAnchor?.col ?? defaultAnchorCol) + 0.5) * CELL_SIZE,
+          top:
+            pointerPos.y -
+            ((dragAnchor?.row ?? defaultAnchorRow) + 0.5) * CELL_SIZE,
+          width: shapeWidth * CELL_SIZE,
+          height: shapeHeight * CELL_SIZE,
           pointerEvents: "none",
           zIndex: 99999,
         }}
