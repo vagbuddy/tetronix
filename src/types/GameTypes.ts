@@ -9,6 +9,12 @@ export interface Cell {
   pieceId?: string;
 }
 
+export interface ClearedCell {
+  x: number;
+  y: number;
+  color?: string;
+}
+
 export interface GameState {
   grid: Cell[][];
   availablePieces: TetrisPiece[];
@@ -18,6 +24,7 @@ export interface GameState {
   gameOver: boolean;
   paused: boolean;
   startTime: number;
+  clearingCells: ClearedCell[]; // transient overlay for clear animation
 }
 
 export interface TetrisPiece {
@@ -48,4 +55,5 @@ export type GameAction =
   | { type: "CLEAR_SUDOKU_BLOCKS" }
   | { type: "PAUSE" }
   | { type: "RESUME" }
-  | { type: "RESTART" };
+  | { type: "RESTART" }
+  | { type: "CLEARING_DONE" };

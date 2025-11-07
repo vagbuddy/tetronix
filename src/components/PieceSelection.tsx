@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faRotate } from "@fortawesome/free-solid-svg-icons";
+import { faRotate, faRotateRight } from "@fortawesome/free-solid-svg-icons";
 import { DEBUG_ANCHOR } from "../config/DebugFlags";
 import { createPortal } from "react-dom";
 import { DragSourceMonitor } from "react-dnd";
@@ -68,6 +68,8 @@ const DraggablePiece: React.FC<{
 
   const previewRef = useRef<HTMLDivElement>(null);
   const anchorRef = useRef<Anchor | null>(null);
+  const dragStartPos = useRef<{ x: number; y: number } | null>(null);
+  const hasMoved = useRef(false);
 
   // Ensure the anchor points to a filled cell in the shape; if user tapped an empty
   // spot inside the footprint, snap to the nearest filled cell by Manhattan distance.
@@ -101,6 +103,25 @@ const DraggablePiece: React.FC<{
 
   const handlePointerMove = (e: PointerEvent) => {
     e.preventDefault();
+
+    // Check if we've moved enough to consider it a drag (5px threshold)
+    if (dragStartPos.current && !hasMoved.current) {
+      const dx = e.clientX - dragStartPos.current.x;
+      const dy = e.clientY - dragStartPos.current.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const thresholdPx = 5;
+
+      if (distance > thresholdPx) {
+        hasMoved.current = true;
+        // Now actually start the drag
+        setDraggedPiece(piece);
+        onStartDrag(piece);
+      } else {
+        // Not moved enough yet, don't start drag
+        return;
+      }
+    }
+
     setPointerPos({ x: e.clientX, y: e.clientY });
     try {
       const detail = {
@@ -120,6 +141,17 @@ const DraggablePiece: React.FC<{
 
   const handlePointerUp = (e: PointerEvent) => {
     e.preventDefault();
+
+    // If we haven't moved, treat it as a click to select the piece
+    if (!hasMoved.current) {
+      onPieceClick(piece);
+      dragStartPos.current = null;
+      hasMoved.current = false;
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", handlePointerUp);
+      return;
+    }
+
     try {
       const detail = {
         clientX: e.clientX,
@@ -138,9 +170,11 @@ const DraggablePiece: React.FC<{
     setPointerPos(null);
     setDragAnchor(null);
     anchorRef.current = null;
+    dragStartPos.current = null;
+    hasMoved.current = false;
     window.removeEventListener("pointermove", handlePointerMove);
     window.removeEventListener("pointerup", handlePointerUp);
-    onEndDrag();
+    // Don't call onEndDrag() here - keep the piece selected after drag
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {
@@ -151,35 +185,38 @@ const DraggablePiece: React.FC<{
       return;
     }
 
-    // Only prevent default on touch to allow native drag on desktop
-    if ((e as any).pointerType === "touch") {
-      e.preventDefault();
-      // compute which cell within the preview was tapped
-      const rect = previewRef.current?.getBoundingClientRect();
-      if (rect) {
-        const cellPx = CELL_SIZE * 0.5;
-        const col = Math.max(
-          0,
-          Math.min(2, Math.floor((e.clientX - rect.left) / cellPx))
-        );
-        const row = Math.max(
-          0,
-          Math.min(2, Math.floor((e.clientY - rect.top) / cellPx))
-        );
-        const anchor = resolveFilledAnchor({ row, col });
-        anchorRef.current = anchor;
-        setDragAnchor(anchor);
-      } else {
-        const fallback = resolveFilledAnchor({ row: 1, col: 1 });
-        anchorRef.current = fallback;
-        setDragAnchor(fallback);
-      }
-      setDraggedPiece(piece);
-      setPointerPos({ x: e.clientX, y: e.clientY });
-      window.addEventListener("pointermove", handlePointerMove);
-      window.addEventListener("pointerup", handlePointerUp);
-      onStartDrag(piece);
+    // Prevent default behavior to avoid conflicts
+    e.preventDefault();
+
+    // Record the starting position
+    dragStartPos.current = { x: e.clientX, y: e.clientY };
+    hasMoved.current = false;
+
+    // Compute which cell within the preview was clicked
+    const rect = previewRef.current?.getBoundingClientRect();
+    if (rect) {
+      const cellPx = CELL_SIZE * 0.5;
+      const col = Math.max(
+        0,
+        Math.min(2, Math.floor((e.clientX - rect.left) / cellPx))
+      );
+      const row = Math.max(
+        0,
+        Math.min(2, Math.floor((e.clientY - rect.top) / cellPx))
+      );
+      const anchor = resolveFilledAnchor({ row, col });
+      anchorRef.current = anchor;
+      setDragAnchor(anchor);
+    } else {
+      const fallback = resolveFilledAnchor({ row: 1, col: 1 });
+      anchorRef.current = fallback;
+      setDragAnchor(fallback);
     }
+
+    // Don't start drag immediately - wait for movement
+    setPointerPos({ x: e.clientX, y: e.clientY });
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", handlePointerUp);
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -232,7 +269,6 @@ const DraggablePiece: React.FC<{
       className={`piece-container ${isSelected ? "selected" : ""} ${
         isPlaced ? "placed" : ""
       }`}
-      onClick={() => !isPlaced && onPieceClick(piece)}
       // Disable native HTML5 drag to avoid conflicts with react-dnd positioning
       draggable={false}
       // onDragStart/onDragEnd intentionally omitted to prevent native drag path
@@ -268,7 +304,7 @@ const DraggablePiece: React.FC<{
               onPieceRotate(piece.instanceId);
             }}
           >
-            <FontAwesomeIcon icon={faRotate} />
+            <FontAwesomeIcon icon={faRotateRight} />
           </button>
         )}
       </div>

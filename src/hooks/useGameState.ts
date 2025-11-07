@@ -1,5 +1,10 @@
 import { useReducer, useCallback, useEffect } from "react";
-import { GameState, GameAction, TetrisPiece } from "../types/GameTypes";
+import {
+  GameState,
+  GameAction,
+  TetrisPiece,
+  ClearedCell,
+} from "../types/GameTypes";
 import {
   createEmptyGrid,
   generateRandomPieces,
@@ -25,6 +30,7 @@ const initialState: GameState = {
   gameOver: false,
   paused: false,
   startTime: Date.now(),
+  clearingCells: [],
 };
 
 const gameReducer = (state: GameState, action: GameAction): GameState => {
@@ -90,6 +96,33 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       let scoreIncrease = 0;
       let totalClears = 0;
 
+      // Build clearing overlay cells from the about-to-be-cleared grid
+      const toClear: { [key: string]: true } = {};
+      const pushCell = (x: number, y: number) => {
+        if (x >= 0 && x < newGrid[0].length && y >= 0 && y < newGrid.length) {
+          toClear[`${x},${y}`] = true;
+        }
+      };
+      // rows
+      for (const r of fullRows) {
+        for (let x = 0; x < newGrid[0].length; x++) pushCell(x, r);
+      }
+      // cols
+      for (const c of fullCols) {
+        for (let y = 0; y < newGrid.length; y++) pushCell(c, y);
+      }
+      // 3x3 blocks
+      for (const block of fullSudokuBlocks) {
+        for (const cell of block.cells) pushCell(cell.x, cell.y);
+      }
+      const clearingCells: ClearedCell[] = Object.keys(toClear).map((key) => {
+        const [xs, ys] = key.split(",");
+        const x = Number(xs);
+        const y = Number(ys);
+        const color = newGrid[y][x].color;
+        return { x, y, color };
+      });
+
       // Clear full rows
       if (fullRows.length > 0) {
         finalGrid = clearRows(finalGrid, fullRows);
@@ -130,6 +163,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         selectedPiece: null,
         score: state.score + scoreIncrease,
         clearsCount: state.clearsCount + totalClears,
+        clearingCells,
         gameOver: !canContinue,
       };
     }
@@ -193,6 +227,9 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         startTime: Date.now(),
       };
 
+    case "CLEARING_DONE":
+      return { ...state, clearingCells: [] };
+
     default:
       return state;
   }
@@ -239,6 +276,14 @@ export const useGameState = () => {
   const restart = useCallback(() => {
     dispatch({ type: "RESTART" });
   }, []);
+
+  // Auto-clear the clearing overlay after the animation duration
+  useEffect(() => {
+    if (state.clearingCells.length > 0) {
+      const tid = setTimeout(() => dispatch({ type: "CLEARING_DONE" }), 250);
+      return () => clearTimeout(tid);
+    }
+  }, [state.clearingCells.length]);
 
   return {
     state,

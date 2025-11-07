@@ -38,6 +38,7 @@ const Game: React.FC = () => {
             grid={state.grid}
             selectedPiece={state.selectedPiece}
             availablePieces={state.availablePieces}
+            clearingCells={state.clearingCells}
             onPiecePlace={placePiece}
             onPieceDeselect={deselectPiece}
           />

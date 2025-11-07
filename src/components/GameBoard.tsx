@@ -18,6 +18,7 @@ interface GameBoardProps {
   grid: Cell[][];
   selectedPiece: TetrisPiece | null;
   availablePieces: TetrisPiece[];
+  clearingCells?: { x: number; y: number; color?: string }[];
   onPiecePlace: (position: { x: number; y: number }, pieceId?: string) => void;
   onPieceDeselect: () => void;
 }
@@ -26,6 +27,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
   grid,
   selectedPiece,
   availablePieces,
+  clearingCells,
   onPiecePlace,
   onPieceDeselect,
 }) => {
@@ -572,6 +574,29 @@ const GameBoard: React.FC<GameBoardProps> = ({
     return nodes;
   };
 
+  const renderClearingOverlay = () => {
+    if (!clearingCells || clearingCells.length === 0) return null;
+    return clearingCells.map((cell, idx) => (
+      <div
+        key={`clearing-${idx}`}
+        className="clearing-cell"
+        data-color={cell.color}
+        style={{
+          position: "absolute",
+          left: cell.x * cellSize,
+          top: cell.y * cellSize,
+          width: cellSize,
+          height: cellSize,
+          animation: "cellClearFade 0.45s ease-out forwards",
+          pointerEvents: "none",
+          zIndex: 6,
+          borderRadius: 4,
+          boxShadow: "0 0 6px rgba(255,255,255,0.6)",
+        }}
+      />
+    ));
+  };
+
   return (
     <div className="game-board-container">
       <div
@@ -599,6 +624,7 @@ const GameBoard: React.FC<GameBoardProps> = ({
         {grid.map((row, rowIndex) =>
           row.map((cell, colIndex) => renderCell(cell, rowIndex, colIndex))
         )}
+        {renderClearingOverlay()}
         {renderHoverPiece()}
       </div>
       {DEBUG_OVERLAY && (
