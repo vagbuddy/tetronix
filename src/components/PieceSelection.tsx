@@ -1,4 +1,6 @@
 import React, { useState, useRef } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faRotate } from "@fortawesome/free-solid-svg-icons";
 import { DEBUG_ANCHOR } from "../config/DebugFlags";
 import { createPortal } from "react-dom";
 import { DragSourceMonitor } from "react-dnd";
@@ -68,7 +70,7 @@ const DraggablePiece: React.FC<{
   const anchorRef = useRef<Anchor | null>(null);
 
   // Ensure the anchor points to a filled cell in the shape; if user tapped an empty
-  // spot inside the 3x3, snap to the nearest filled cell by Manhattan distance.
+  // spot inside the footprint, snap to the nearest filled cell by Manhattan distance.
   const resolveFilledAnchor = (desired: Anchor): Anchor => {
     const h = piece.shape.length;
     const w = piece.shape[0]?.length || 0;
@@ -241,6 +243,8 @@ const DraggablePiece: React.FC<{
         {!isPlaced && (
           <button
             className="rotate-button"
+            aria-label="Rotate piece"
+            title="Rotate"
             onPointerDown={(e) => {
               // Prevent drag starting from rotate button on touch
               e.preventDefault();
@@ -251,16 +255,20 @@ const DraggablePiece: React.FC<{
               // Rotate local drag anchor so the touched cell remains under the finger
               if (anchorRef.current) {
                 const { row, col } = anchorRef.current;
-                // 90deg clockwise rotation in NxN: (r, c) -> (c, N-1 - r)
                 const size = piece.shape.length - 1;
-                const rotated = { row: col, col: size - row };
+                const isTwoState =
+                  piece.id === "I" || piece.id === "S" || piece.id === "Z";
+                const goingCCW = isTwoState && piece.rotation === 1;
+                const rotated = goingCCW
+                  ? { row: size - col, col: row }
+                  : { row: col, col: size - row };
                 anchorRef.current = rotated;
                 setDragAnchor(rotated);
               }
               onPieceRotate(piece.instanceId);
             }}
           >
-            ↻
+            <FontAwesomeIcon icon={faRotate} />
           </button>
         )}
       </div>

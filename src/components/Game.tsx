@@ -4,6 +4,7 @@ import GameBoard from "./GameBoard";
 import PieceSelection from "./PieceSelection";
 import GameInfo from "./GameInfo";
 import ScoreCorner from "./ScoreCorner";
+import GameOverModal from "./GameOverModal";
 import "./Game.css";
 import { isMobile } from "../utils/DeviceDetection";
 
@@ -55,8 +56,7 @@ const Game: React.FC = () => {
           <div className="game-sidebar">
             <GameInfo
               score={state.score}
-              level={state.level}
-              linesCleared={state.linesCleared}
+              clearsCount={state.clearsCount}
               gameOver={state.gameOver}
               paused={state.paused}
               onPause={pause}
@@ -72,8 +72,19 @@ const Game: React.FC = () => {
           <div className="pause-content">
             <h2>Game Paused</h2>
             <p>Click Resume to continue playing</p>
+            <button className="resume-button" onClick={resume}>
+              Resume
+            </button>
           </div>
         </div>
+      )}
+
+      {state.gameOver && (
+        <GameOverModal
+          score={state.score}
+          startTime={state.startTime}
+          onRestart={restart}
+        />
       )}
     </div>
   );

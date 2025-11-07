@@ -1,10 +1,9 @@
-import React from 'react';
-import './GameInfo.css';
+import React from "react";
+import "./GameInfo.css";
 
 interface GameInfoProps {
   score: number;
-  level: number;
-  linesCleared: number;
+  clearsCount: number;
   gameOver: boolean;
   paused: boolean;
   onPause: () => void;
@@ -14,13 +13,12 @@ interface GameInfoProps {
 
 const GameInfo: React.FC<GameInfoProps> = ({
   score,
-  level,
-  linesCleared,
+  clearsCount,
   gameOver,
   paused,
   onPause,
   onResume,
-  onRestart
+  onRestart,
 }) => {
   return (
     <div className="game-info">
@@ -28,33 +26,26 @@ const GameInfo: React.FC<GameInfoProps> = ({
         <h2>Score: {score.toLocaleString()}</h2>
         <div className="stats">
           <div className="stat">
-            <span className="stat-label">Level:</span>
-            <span className="stat-value">{level}</span>
-          </div>
-          <div className="stat">
-            <span className="stat-label">Lines:</span>
-            <span className="stat-value">{linesCleared}</span>
+            <span className="stat-label">Clears:</span>
+            <span className="stat-value">{clearsCount}</span>
           </div>
         </div>
       </div>
-      
+
       <div className="controls">
         {!gameOver && (
-          <button 
+          <button
             className="control-button"
             onClick={paused ? onResume : onPause}
           >
-            {paused ? 'Resume' : 'Pause'}
+            {paused ? "Resume" : "Pause"}
           </button>
         )}
-        <button 
-          className="control-button restart-button"
-          onClick={onRestart}
-        >
+        <button className="control-button" onClick={onRestart}>
           Restart
         </button>
       </div>
-      
+
       <div className="instructions">
         <h3>How to Play</h3>
         <div className="instruction-list">
@@ -72,21 +63,36 @@ const GameInfo: React.FC<GameInfoProps> = ({
           </div>
           <div className="instruction-item">
             <span className="instruction-icon">🎯</span>
-            Fill complete rows or 3×3 blocks to clear them
+            Fill complete rows, columns, or 3×3 blocks to clear them
           </div>
         </div>
       </div>
-      
+
+      <div className="game-rules">
+        <h3>Scoring</h3>
+        <ul>
+          <li>Row/Column: 100 points each</li>
+          <li>3×3 Block: 500 points each</li>
+          <li>
+            <strong>Combo Multiplier:</strong>
+            <ul>
+              <li>1 type cleared: ×1</li>
+              <li>2 types cleared: ×2</li>
+              <li>3 types cleared: ×3</li>
+            </ul>
+          </li>
+          <li>Example: 1 row + 1 block = (100+500) × 2 = 1,200 pts</li>
+        </ul>
+      </div>
+
       <div className="game-rules">
         <h3>Rules</h3>
         <ul>
           <li>Place all 3 pieces on the board</li>
           <li>Pieces cannot overlap with placed pieces</li>
-          <li>Fill complete rows to clear them (no gravity)</li>
-          <li>Fill complete 3×3 sudoku blocks to clear them</li>
           <li>Cleared areas stay empty - pieces don't fall</li>
-          <li>Both give points and increase your level</li>
           <li>New pieces automatically appear when all are placed</li>
+          <li>Game over when no pieces can be placed</li>
         </ul>
       </div>
     </div>

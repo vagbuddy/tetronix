@@ -13,6 +13,7 @@ import {
   clearCols,
   clearSudokuBlocks,
   calculateScore,
+  canPlaceAnyPiece,
 } from "../utils/GameLogic";
 
 const initialState: GameState = {
@@ -20,10 +21,10 @@ const initialState: GameState = {
   availablePieces: generateRandomPieces(),
   selectedPiece: null,
   score: 0,
-  level: 1,
-  linesCleared: 0,
+  clearsCount: 0,
   gameOver: false,
   paused: false,
+  startTime: Date.now(),
 };
 
 const gameReducer = (state: GameState, action: GameAction): GameState => {
@@ -87,29 +88,30 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 
       let finalGrid = newGrid;
       let scoreIncrease = 0;
-      let linesIncrease = 0;
+      let totalClears = 0;
 
       // Clear full rows
       if (fullRows.length > 0) {
         finalGrid = clearRows(finalGrid, fullRows);
-        linesIncrease = fullRows.length;
+        totalClears += fullRows.length;
       }
 
       // Clear full cols
       if (fullCols.length > 0) {
         finalGrid = clearCols(finalGrid, fullCols);
-        linesIncrease = fullCols.length;
+        totalClears += fullCols.length;
       }
 
       // Clear full sudoku blocks
       if (fullSudokuBlocks.length > 0) {
         finalGrid = clearSudokuBlocks(finalGrid, fullSudokuBlocks);
+        totalClears += fullSudokuBlocks.length;
       }
 
       scoreIncrease = calculateScore(
-        linesIncrease,
-        fullSudokuBlocks.length,
-        state.level
+        fullRows.length,
+        fullCols.length,
+        fullSudokuBlocks.length
       );
 
       // Check if all pieces are placed - if so, generate new pieces
@@ -118,15 +120,17 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         ? generateRandomPieces()
         : updatedPieces;
 
+      // Check if any remaining pieces can be placed on the board
+      const canContinue = canPlaceAnyPiece(finalPieces, finalGrid);
+
       return {
         ...state,
         grid: finalGrid,
         availablePieces: finalPieces,
         selectedPiece: null,
         score: state.score + scoreIncrease,
-        linesCleared: state.linesCleared + linesIncrease,
-        level: Math.floor((state.linesCleared + linesIncrease) / 10) + 1,
-        gameOver: false, // Never game over, just keep generating new pieces
+        clearsCount: state.clearsCount + totalClears,
+        gameOver: !canContinue,
       };
     }
 
@@ -186,6 +190,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       return {
         ...initialState,
         availablePieces: generateRandomPieces(),
+        startTime: Date.now(),
       };
 
     default:

@@ -45,7 +45,7 @@
 
 .controls {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   gap: 10px;
   margin-bottom: 25px;
 }
@@ -72,6 +72,7 @@
   background: linear-gradient(135deg, #3498db, #2980b9);
   color: white;
   box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+  flex: 1;
 }
 
 .control-button:hover {
@@ -81,15 +82,6 @@
 
 .control-button:active {
   transform: translateY(0);
-}
-
-.restart-button {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
-  box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
-}
-
-.restart-button:hover {
-  box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
 }
 
 .instructions h3,

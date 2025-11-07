@@ -141,6 +141,11 @@ export const generateRandomPieces = (): TetrisPiece[] => {
 const rotateMatrixCW = (matrix: number[][]): number[][] =>
   matrix[0].map((_, index) => matrix.map((row) => row[index]).reverse());
 
+// Rotate a matrix 90 degrees counter-clockwise
+const rotateMatrixCCW = (matrix: number[][]): number[][] =>
+  // Use three CW rotations for simplicity and correctness with small matrices
+  rotateMatrixCW(rotateMatrixCW(rotateMatrixCW(matrix)));
+
 // Certain pieces have fewer distinct orientations in a 3x3 footprint:
 // - O has 1 (square)
 // - I, S, Z have 2 (horizontal/vertical)
@@ -154,7 +159,17 @@ export const rotatePiece = (piece: TetrisPiece): TetrisPiece => {
   if (allowed === 1) return { ...piece, rotation: 0 };
 
   const nextRotation = (piece.rotation + 1) % allowed;
-  const rotatedShape = rotateMatrixCW(piece.shape);
+  // For pieces with only 2 distinct orientations, rotate CW for 0->1 and CCW for 1->0
+  // so they toggle strictly between two states (horizontal/vertical), avoiding 180/270 states.
+  let rotatedShape: number[][];
+  if (allowed === 2) {
+    rotatedShape =
+      piece.rotation === 0
+        ? rotateMatrixCW(piece.shape)
+        : rotateMatrixCCW(piece.shape);
+  } else {
+    rotatedShape = rotateMatrixCW(piece.shape);
+  }
 
   return {
     ...piece,
@@ -310,13 +325,27 @@ export const clearSudokuBlocks = (
 };
 
 export const calculateScore = (
-  linesCleared: number,
-  sudokuBlocksCleared: number,
-  level: number
+  rowsCleared: number,
+  colsCleared: number,
+  sudokuBlocksCleared: number
 ): number => {
-  const lineScore = linesCleared * 100 * level;
-  const blockScore = sudokuBlocksCleared * 500 * level;
-  return lineScore + blockScore;
+  // Base score for each type of clear
+  const rowScore = rowsCleared * 100;
+  const colScore = colsCleared * 100;
+  const blockScore = sudokuBlocksCleared * 500;
+
+  const baseScore = rowScore + colScore + blockScore;
+
+  // Calculate combo multiplier based on different types cleared simultaneously
+  let clearTypes = 0;
+  if (rowsCleared > 0) clearTypes++;
+  if (colsCleared > 0) clearTypes++;
+  if (sudokuBlocksCleared > 0) clearTypes++;
+
+  // Multiplier: 1x for single type, 2x for two types, 3x for all three types
+  const multiplier = clearTypes;
+
+  return baseScore * multiplier;
 };
 
 export const getGridPositionFromMouse = (
@@ -335,4 +364,31 @@ export const getGridPositionFromMouse = (
   }
 
   return null;
+};
+
+export const canPlaceAnyPiece = (
+  pieces: TetrisPiece[],
+  grid: Cell[][]
+): boolean => {
+  // Filter to only unplaced pieces
+  const unplacedPieces = pieces.filter((piece) => !piece.isPlaced);
+
+  // If no pieces left, can't place any
+  if (unplacedPieces.length === 0) {
+    return false;
+  }
+
+  // Try each piece at every position on the grid
+  for (const piece of unplacedPieces) {
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+      for (let x = 0; x < GRID_WIDTH; x++) {
+        if (isValidPlacement(piece, { x, y }, grid)) {
+          return true; // Found at least one valid placement
+        }
+      }
+    }
+  }
+
+  // No valid placements found for any piece
+  return false;
 };
