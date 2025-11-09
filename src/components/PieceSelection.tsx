@@ -313,9 +313,6 @@ const DraggablePiece: React.FC<{
                 onPointerDown={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
                   // Mirror the anchor horizontally
                   if (anchorRef.current) {
                     const { row, col } = anchorRef.current;
@@ -325,6 +322,10 @@ const DraggablePiece: React.FC<{
                     setDragAnchor(flipped);
                   }
                   onPieceFlip(piece.instanceId);
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
                 }}
               >
                 <FontAwesomeIcon icon={faLeftRight} />
@@ -336,11 +337,7 @@ const DraggablePiece: React.FC<{
               aria-label="Rotate piece"
               title="Rotate"
               onPointerDown={(e) => {
-                // Prevent drag starting from rotate button on touch
                 e.preventDefault();
-                e.stopPropagation();
-              }}
-              onClick={(e) => {
                 e.stopPropagation();
                 // Rotate local drag anchor so the touched cell remains under the finger
                 if (anchorRef.current) {
@@ -356,6 +353,10 @@ const DraggablePiece: React.FC<{
                   setDragAnchor(rotated);
                 }
                 onPieceRotate(piece.instanceId);
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
               }}
             >
               <FontAwesomeIcon icon={faRotateRight} />
