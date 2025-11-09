@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import "./GameOverModal.css";
 
 interface GameOverModalProps {
@@ -14,6 +15,8 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   onRestart,
   onContinue,
 }) => {
+  const { t } = useTranslation();
+
   const formatGameTime = (startTime: number): string => {
     const elapsedMs = Date.now() - startTime;
     const totalSeconds = Math.floor(elapsedMs / 1000);
@@ -29,26 +32,26 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   return (
     <div className="game-over-overlay">
       <div className="game-over-modal">
-        <h2>Game Over!</h2>
-        <p className="game-over-message">No more moves available</p>
+        <h2>{t("gameOver")}</h2>
+        <p className="game-over-message">{t("noMoreMoves")}</p>
 
         <div className="game-over-stats">
           <div className="stat-item">
-            <span className="stat-label">Final Score</span>
+            <span className="stat-label">{t("finalScore")}</span>
             <span className="stat-value">{score}</span>
           </div>
           <div className="stat-item">
-            <span className="stat-label">Time Played</span>
+            <span className="stat-label">{t("timePlayed")}</span>
             <span className="stat-value">{formatGameTime(startTime)}</span>
           </div>
         </div>
 
         <div className="game-over-buttons">
           <button className="continue-button" onClick={onContinue}>
-            Continue
+            {t("continue")}
           </button>
           <button className="restart-button" onClick={onRestart}>
-            Restart
+            {t("restart")}
           </button>
         </div>
       </div>

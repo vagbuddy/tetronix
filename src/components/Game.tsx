@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import { useGameState } from "../hooks/useGameState";
 import GameBoard from "./GameBoard";
 import PieceSelection from "./PieceSelection";
@@ -6,11 +7,13 @@ import GameInfo from "./GameInfo";
 import ScoreCorner from "./ScoreCorner";
 import GameOverModal from "./GameOverModal";
 import DifficultySelector from "./DifficultySelector";
+import LanguageSelector from "./LanguageSelector";
 import "./Game.css";
 import { isMobile } from "../utils/DeviceDetection";
 import type { Difficulty } from "../types/GameTypes";
 
 const Game: React.FC = () => {
+  const { t } = useTranslation();
   const {
     state,
     selectPiece,
@@ -38,10 +41,20 @@ const Game: React.FC = () => {
 
   return (
     <div className="game-container">
-      <DifficultySelector
-        difficulty={state.difficulty}
-        onDifficultyChange={setDifficulty}
-      />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          width: "100%",
+        }}
+      >
+        <DifficultySelector
+          difficulty={state.difficulty}
+          onDifficultyChange={setDifficulty}
+        />
+        <LanguageSelector />
+      </div>
 
       <div className="game-content">
         <div className="game-main">
@@ -87,10 +100,10 @@ const Game: React.FC = () => {
       {state.paused && (
         <div className="pause-overlay">
           <div className="pause-content">
-            <h2>Game Paused</h2>
-            <p>Click Resume to continue playing</p>
+            <h2>{t("pause")}</h2>
+            <p>{t("resume")}</p>
             <button className="resume-button" onClick={resume}>
-              Resume
+              {t("resume")}
             </button>
           </div>
         </div>

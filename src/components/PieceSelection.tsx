@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { useTranslation } from "react-i18next";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faRotate,
@@ -419,6 +420,7 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
   flipEnabled,
   score,
 }) => {
+  const { t } = useTranslation();
   const [draggedPiece, setDraggedPiece] = useState<TetrisPiece | null>(null);
   const [pointerPos, setPointerPos] = useState<{ x: number; y: number } | null>(
     null
@@ -487,9 +489,9 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
   return (
     <div className="piece-selection">
       <div className="piece-selection-header">
-        <h3>Available Pieces</h3>
+        <h3>{t("availablePieces")}</h3>
         <div className="score-display">
-          <span className="score-label">Score:</span>
+          <span className="score-label">{t("score")}:</span>
           <span className="score-value">{score}</span>
         </div>
       </div>

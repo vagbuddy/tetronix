@@ -1,4 +1,5 @@
 import React from "react";
+import { useTranslation } from "react-i18next";
 import "./DifficultySelector.css";
 import type { Difficulty } from "../types/GameTypes";
 
@@ -11,14 +12,16 @@ const DifficultySelector: React.FC<DifficultySelectorProps> = ({
   difficulty,
   onDifficultyChange,
 }) => {
+  const { t } = useTranslation();
+
   const difficulties: Array<{
     value: Difficulty;
     label: string;
   }> = [
-    { value: "casual", label: "Casual" },
-    { value: "master", label: "Master" },
-    { value: "expert", label: "Expert" },
-    { value: "insane", label: "Insane" },
+    { value: "casual", label: t("difficulty.casual") },
+    { value: "master", label: t("difficulty.master") },
+    { value: "expert", label: t("difficulty.expert") },
+    { value: "insane", label: t("difficulty.insane") },
   ];
 
   return (

@@ -1,0 +1,50 @@
+{
+  "appTitle": "Sudoku Tetris",
+  "difficulty": {
+    "casual": "Casual",
+    "master": "Master",
+    "expert": "Expert",
+    "insane": "Insane"
+  },
+  "score": "Score",
+  "clears": "Clears",
+  "pause": "Pause",
+  "resume": "Resume",
+  "restart": "Restart",
+  "gameOver": "Game Over!",
+  "noMoreMoves": "No more moves available",
+  "finalScore": "Final Score",
+  "timePlayed": "Time Played",
+  "continue": "Continue",
+  "howToPlay": "How to Play",
+  "instructions": {
+    "click": "Click a piece, then click the board to place it",
+    "rotate": "Use the rotate button to turn pieces before placing",
+    "rotationDisabled": "Rotation disabled in this mode; orientation is random",
+    "clear": "Fill rows, columns, or 3×3 blocks to clear them",
+    "newBatch": "Place all pieces to receive a new batch"
+  },
+  "scoring": "Scoring",
+  "scoringRules": {
+    "rowColumn": "Row/Column: 100 points each",
+    "block": "3×3 Block: 500 points each",
+    "comboMultiplier": "Combo Multiplier:",
+    "combo1": "1 type cleared: ×1",
+    "combo2": "2 types cleared: ×2",
+    "combo3": "3 types cleared: ×3",
+    "pentomino": "Pentomino shapes appear in Hard & Impossible.",
+    "rotation": "Rotation available only in Casual & Expert."
+  },
+  "rules": "Rules",
+  "rulesText": {
+    "newBatch": "Place all pieces to receive a new batch.",
+    "noGravity": "No gravity: cleared cells remain empty.",
+    "gameOver": "Game over when no remaining piece fits.",
+    "difficultyEffects": "Difficulty effects:",
+    "casualMaster": "Casual/Master: tetrominoes only. Casual has rotation, Master doesn't (random start orientation).",
+    "expert": "Expert: tetrominoes + pentominoes, rotation enabled.",
+    "insane": "Insane: tetrominoes + pentominoes, rotation disabled (random orientation)."
+  },
+  "language": "Language",
+  "availablePieces": "Available Pieces"
+}

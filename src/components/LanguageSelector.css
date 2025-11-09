@@ -1,0 +1,46 @@
+.lang-selector {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-left: 12px;
+}
+.lang-selector__button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 1.7rem;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: background 0.2s;
+  font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+}
+.lang-selector__button:focus,
+.lang-selector__button:hover {
+  background: rgba(255,255,255,0.15);
+}
+.lang-selector__dropdown {
+  position: absolute;
+  top: 110%;
+  right: 0;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  z-index: 10;
+  min-width: 44px;
+  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+}
+.lang-selector__option {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  padding: 6px 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.2s;
+  font-family: 'Noto Color Emoji', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', sans-serif;
+}
+.lang-selector__option:hover {
+  background: #f0f0f0;
+}

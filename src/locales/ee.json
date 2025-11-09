@@ -1,0 +1,50 @@
+{
+  "appTitle": "Sudoku Tetrise",
+  "difficulty": {
+    "casual": "Iizi",
+    "master": "Meister",
+    "expert": "Ekspert",
+    "insane": "Legendaarne"
+  },
+  "score": "Skoor",
+  "clears": "Kustutused",
+  "pause": "Paus",
+  "resume": "Jätka",
+  "restart": "Taaskäivita",
+  "gameOver": "Mäng läbi!",
+  "noMoreMoves": "Enam käike pole",
+  "finalScore": "Lõplik skoor",
+  "timePlayed": "Mängitud aeg",
+  "continue": "Jätka",
+  "howToPlay": "Kuidas mängida",
+  "instructions": {
+    "click": "Klõpsa tükil, seejärel klõpsa laual selle paigutamiseks",
+    "rotate": "Kasuta pööramisnuppu tükkide pööramiseks enne paigutamist",
+    "rotationDisabled": "Pööramine selles režiimis keelatud; orientatsioon on juhuslik",
+    "clear": "Täida read, veerud või 3×3 plokid nende kustutamiseks",
+    "newBatch": "Paiguta kõik tükid, et saada uus kogum"
+  },
+  "scoring": "Punktiarvestus",
+  "scoringRules": {
+    "rowColumn": "Rida/Veerg: 100 punkti iga",
+    "block": "3×3 Plokk: 500 punkti iga",
+    "comboMultiplier": "Kombo kordaja:",
+    "combo1": "1 tüüp kustutatud: ×1",
+    "combo2": "2 tüüpi kustutatud: ×2",
+    "combo3": "3 tüüpi kustutatud: ×3",
+    "pentomino": "Pentomino kujundid ilmuvad raskes ja võimatus režiimis.",
+    "rotation": "Pööramine saadaval ainult lihtsas ja ekspert režiimis."
+  },
+  "rules": "Reeglid",
+  "rulesText": {
+    "newBatch": "Paiguta kõik tükid, et saada uus kogum.",
+    "noGravity": "Gravitatsiooni pole: kustutatud lahtrid jäävad tühjaks.",
+    "gameOver": "Mäng läbi, kui ükski järelejäänud tükk ei sobi.",
+    "difficultyEffects": "Raskusastme mõjud:",
+    "casualMaster": "Lihtne/Meister: ainult tetromino'd. Lihtsas on pööramine, meistril mitte (juhuslik algus orientatsioon).",
+    "expert": "Ekspert: tetromino'd + pentomino'd, pööramine lubatud.",
+    "insane": "Hullumeelne: tetromino'd + pentomino'd, pööramine keelatud (juhuslik orientatsioon)."
+  },
+  "language": "Keel",
+  "availablePieces": "Saadaolevad tükid"
+}
