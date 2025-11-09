@@ -25,6 +25,7 @@ export interface GameState {
   paused: boolean;
   startTime: number;
   clearingCells: ClearedCell[]; // transient overlay for clear animation
+  difficulty: Difficulty;
 }
 
 export interface TetrisPiece {
@@ -36,6 +37,7 @@ export interface TetrisPiece {
   rotation: number;
   isPlaced: boolean;
   isDragging: boolean;
+  isMirrored?: boolean; // For chiral pentominoes (F5, L5, N5, P5, Y5, Z5)
 }
 
 export interface SudokuBlock {
@@ -49,6 +51,7 @@ export type GameAction =
   | { type: "DESELECT_PIECE" }
   | { type: "PLACE_PIECE"; position: Position; pieceId?: string }
   | { type: "ROTATE_PIECE"; pieceId: string }
+  | { type: "FLIP_PIECE"; pieceId: string }
   | { type: "START_DRAG"; piece: TetrisPiece }
   | { type: "END_DRAG" }
   | { type: "CLEAR_LINES" }
@@ -56,4 +59,13 @@ export type GameAction =
   | { type: "PAUSE" }
   | { type: "RESUME" }
   | { type: "RESTART" }
+  | { type: "CONTINUE_GAME" }
+  | { type: "SET_DIFFICULTY"; difficulty: Difficulty }
   | { type: "CLEARING_DONE" };
+
+// Difficulty levels and rules summary:
+// casual: base tetrominoes, rotation enabled
+// master: base tetrominoes, no user rotation, random starting orientation
+// expert: tetrominoes + pentominoes, rotation enabled
+// insane: tetrominoes + pentominoes, no rotation, random orientation
+export type Difficulty = "casual" | "master" | "expert" | "insane";

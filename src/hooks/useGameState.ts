@@ -5,10 +5,12 @@ import {
   TetrisPiece,
   ClearedCell,
 } from "../types/GameTypes";
+import type { Difficulty } from "../types/GameTypes";
 import {
   createEmptyGrid,
   generateRandomPieces,
   rotatePiece,
+  flipPiece,
   isValidPlacement,
   placePieceOnGrid,
   checkFullRows,
@@ -23,7 +25,7 @@ import {
 
 const initialState: GameState = {
   grid: createEmptyGrid(),
-  availablePieces: generateRandomPieces(),
+  availablePieces: generateRandomPieces("casual"),
   selectedPiece: null,
   score: 0,
   clearsCount: 0,
@@ -31,7 +33,15 @@ const initialState: GameState = {
   paused: false,
   startTime: Date.now(),
   clearingCells: [],
+  difficulty: "casual",
 };
+
+const rotationEnabled = (difficulty: Difficulty) =>
+  difficulty === "casual" || difficulty === "expert";
+
+// Flipping is allowed only in INSANE (rotation disabled). Expert shows mirrored
+// variants as separate pieces, but flip control is disabled.
+const flipEnabled = (difficulty: Difficulty) => difficulty === "insane";
 
 const gameReducer = (state: GameState, action: GameAction): GameState => {
   switch (action.type) {
@@ -150,11 +160,14 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       // Check if all pieces are placed - if so, generate new pieces
       const allPiecesPlaced = updatedPieces.every((p) => p.isPlaced);
       const finalPieces = allPiecesPlaced
-        ? generateRandomPieces()
+        ? generateRandomPieces(state.difficulty)
         : updatedPieces;
 
       // Check if any remaining pieces can be placed on the board
-      const canContinue = canPlaceAnyPiece(finalPieces, finalGrid);
+      const canContinue = canPlaceAnyPiece(finalPieces, finalGrid, {
+        allowRotate: rotationEnabled(state.difficulty),
+        allowMirror: flipEnabled(state.difficulty),
+      });
 
       return {
         ...state,
@@ -169,6 +182,9 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     }
 
     case "ROTATE_PIECE": {
+      if (!rotationEnabled(state.difficulty)) {
+        return state; // rotation disabled for this difficulty
+      }
       let newSelected = state.selectedPiece;
       const updatedPieces = state.availablePieces.map((piece) => {
         if (piece.instanceId === action.pieceId) {
@@ -177,6 +193,30 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
             newSelected = rotated;
           }
           return rotated;
+        }
+        return piece;
+      });
+
+      return {
+        ...state,
+        availablePieces: updatedPieces,
+        selectedPiece: newSelected,
+      };
+    }
+
+    case "FLIP_PIECE": {
+      // Allow flip only when flipEnabled for current difficulty
+      if (!flipEnabled(state.difficulty)) {
+        return state;
+      }
+      let newSelected = state.selectedPiece;
+      const updatedPieces = state.availablePieces.map((piece) => {
+        if (piece.instanceId === action.pieceId) {
+          const flipped = flipPiece(piece);
+          if (state.selectedPiece?.instanceId === action.pieceId) {
+            newSelected = flipped;
+          }
+          return flipped;
         }
         return piece;
       });
@@ -223,9 +263,25 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     case "RESTART":
       return {
         ...initialState,
-        availablePieces: generateRandomPieces(),
+        difficulty: state.difficulty,
+        availablePieces: generateRandomPieces(state.difficulty),
         startTime: Date.now(),
       };
+
+    case "CONTINUE_GAME":
+      // Allow user to dismiss game over screen and continue playing
+      return { ...state, gameOver: false };
+
+    case "SET_DIFFICULTY": {
+      // Changing difficulty restarts the game with new pool/rules
+      const newDifficulty = action.difficulty;
+      return {
+        ...initialState,
+        difficulty: newDifficulty,
+        availablePieces: generateRandomPieces(newDifficulty),
+        startTime: Date.now(),
+      };
+    }
 
     case "CLEARING_DONE":
       return { ...state, clearingCells: [] };
@@ -257,6 +313,10 @@ export const useGameState = () => {
     dispatch({ type: "ROTATE_PIECE", pieceId });
   }, []);
 
+  const flipPiece = useCallback((pieceId: string) => {
+    dispatch({ type: "FLIP_PIECE", pieceId });
+  }, []);
+
   const startDrag = useCallback((piece: TetrisPiece) => {
     dispatch({ type: "START_DRAG", piece });
   }, []);
@@ -277,6 +337,14 @@ export const useGameState = () => {
     dispatch({ type: "RESTART" });
   }, []);
 
+  const continueGame = useCallback(() => {
+    dispatch({ type: "CONTINUE_GAME" });
+  }, []);
+
+  const setDifficulty = useCallback((difficulty: Difficulty) => {
+    dispatch({ type: "SET_DIFFICULTY", difficulty });
+  }, []);
+
   // Auto-clear the clearing overlay after the animation duration
   useEffect(() => {
     if (state.clearingCells.length > 0) {
@@ -291,10 +359,13 @@ export const useGameState = () => {
     deselectPiece,
     placePiece,
     rotatePiece,
+    flipPiece,
     startDrag,
     endDrag,
     pause,
     resume,
     restart,
+    continueGame,
+    setDifficulty,
   };
 };

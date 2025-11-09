@@ -11,6 +11,7 @@
 .score-section h2 {
   margin: 0 0 20px 0;
   font-size: 2rem;
+  font-family: 'Orbitron', monospace;
   color: #f39c12;
   text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
   text-align: center;
@@ -39,6 +40,7 @@
 .stat-value {
   font-size: 1.5rem;
   font-weight: bold;
+  font-family: 'Orbitron', monospace;
   color: #3498db;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }

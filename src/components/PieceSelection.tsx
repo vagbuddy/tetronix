@@ -1,6 +1,10 @@
 import React, { useState, useRef } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faRotate, faRotateRight } from "@fortawesome/free-solid-svg-icons";
+import {
+  faRotate,
+  faRotateRight,
+  faLeftRight,
+} from "@fortawesome/free-solid-svg-icons";
 import { DEBUG_ANCHOR } from "../config/DebugFlags";
 import { createPortal } from "react-dom";
 import { DragSourceMonitor } from "react-dnd";
@@ -21,8 +25,12 @@ interface PieceSelectionProps {
   selectedPiece: TetrisPiece | null;
   onPieceClick: (piece: TetrisPiece) => void;
   onPieceRotate: (pieceId: string) => void;
+  onPieceFlip: (pieceId: string) => void;
   onStartDrag: (piece: TetrisPiece) => void;
   onEndDrag: () => void;
+  rotationEnabled: boolean;
+  flipEnabled: boolean;
+  score: number;
 }
 
 // Draggable piece component
@@ -31,21 +39,27 @@ const DraggablePiece: React.FC<{
   isSelected: boolean;
   onPieceClick: (piece: TetrisPiece) => void;
   onPieceRotate: (pieceId: string) => void;
+  onPieceFlip: (pieceId: string) => void;
   setDraggedPiece: (piece: TetrisPiece | null) => void;
   setPointerPos: (pos: { x: number; y: number } | null) => void;
   setDragAnchor: (anchor: Anchor | null) => void;
   onStartDrag: (piece: TetrisPiece) => void;
   onEndDrag: () => void;
+  rotationEnabled: boolean;
+  flipEnabled: boolean;
 }> = ({
   piece,
   isSelected,
   onPieceClick,
   onPieceRotate,
+  onPieceFlip,
   setDraggedPiece,
   setPointerPos,
   setDragAnchor,
   onStartDrag,
   onEndDrag,
+  rotationEnabled,
+  flipEnabled,
 }) => {
   const [{ isDragging }, dragRef] = useDrag<
     DragItem,
@@ -179,9 +193,12 @@ const DraggablePiece: React.FC<{
 
   const handlePointerDown = (e: React.PointerEvent) => {
     if (piece.isPlaced) return;
-    // If the user tapped the rotate button, don't initiate drag
+    // If the user tapped the rotate or flip button, don't initiate drag
     const target = e.target as HTMLElement;
-    if (target && target.closest(".rotate-button")) {
+    if (
+      target &&
+      (target.closest(".rotate-button") || target.closest(".flip-button"))
+    ) {
       return;
     }
 
@@ -196,13 +213,15 @@ const DraggablePiece: React.FC<{
     const rect = previewRef.current?.getBoundingClientRect();
     if (rect) {
       const cellPx = CELL_SIZE * 0.5;
+      const maxCol = (piece.shape[0]?.length || 1) - 1;
+      const maxRow = piece.shape.length - 1;
       const col = Math.max(
         0,
-        Math.min(2, Math.floor((e.clientX - rect.left) / cellPx))
+        Math.min(maxCol, Math.floor((e.clientX - rect.left) / cellPx))
       );
       const row = Math.max(
         0,
-        Math.min(2, Math.floor((e.clientY - rect.top) / cellPx))
+        Math.min(maxRow, Math.floor((e.clientY - rect.top) / cellPx))
       );
       const anchor = resolveFilledAnchor({ row, col });
       anchorRef.current = anchor;
@@ -220,9 +239,12 @@ const DraggablePiece: React.FC<{
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    // If starting drag from rotate button, cancel drag
+    // If starting drag from rotate or flip button, cancel drag
     const target = e.target as HTMLElement;
-    if (target && target.closest(".rotate-button")) {
+    if (
+      target &&
+      (target.closest(".rotate-button") || target.closest(".flip-button"))
+    ) {
       try {
         e.preventDefault();
       } catch {}
@@ -238,13 +260,15 @@ const DraggablePiece: React.FC<{
     const rect = previewRef.current?.getBoundingClientRect();
     if (rect) {
       const cellPx = CELL_SIZE * 0.5;
+      const maxCol = (piece.shape[0]?.length || 1) - 1;
+      const maxRow = piece.shape.length - 1;
       const col = Math.max(
         0,
-        Math.min(2, Math.floor((e.clientX - rect.left) / cellPx))
+        Math.min(maxCol, Math.floor((e.clientX - rect.left) / cellPx))
       );
       const row = Math.max(
         0,
-        Math.min(2, Math.floor((e.clientY - rect.top) / cellPx))
+        Math.min(maxRow, Math.floor((e.clientY - rect.top) / cellPx))
       );
       const anchor = resolveFilledAnchor({ row, col });
       anchorRef.current = anchor;
@@ -276,68 +300,106 @@ const DraggablePiece: React.FC<{
     >
       <div className="piece-header">
         <span className="piece-name">{piece.id}</span>
-        {!isPlaced && (
-          <button
-            className="rotate-button"
-            aria-label="Rotate piece"
-            title="Rotate"
-            onPointerDown={(e) => {
-              // Prevent drag starting from rotate button on touch
-              e.preventDefault();
-              e.stopPropagation();
-            }}
-            onClick={(e) => {
-              e.stopPropagation();
-              // Rotate local drag anchor so the touched cell remains under the finger
-              if (anchorRef.current) {
-                const { row, col } = anchorRef.current;
-                const size = piece.shape.length - 1;
-                const isTwoState =
-                  piece.id === "I" || piece.id === "S" || piece.id === "Z";
-                const goingCCW = isTwoState && piece.rotation === 1;
-                const rotated = goingCCW
-                  ? { row: size - col, col: row }
-                  : { row: col, col: size - row };
-                anchorRef.current = rotated;
-                setDragAnchor(rotated);
-              }
-              onPieceRotate(piece.instanceId);
-            }}
-          >
-            <FontAwesomeIcon icon={faRotateRight} />
-          </button>
-        )}
+        <div className="piece-controls">
+          {/* Show flip when flipEnabled (expert & insane) and base chiral (exclude mirrored variants) */}
+          {!isPlaced &&
+            flipEnabled &&
+            ["F5", "L5", "N5", "P5", "Y5", "Z5"].includes(piece.id) && (
+              <button
+                className="flip-button"
+                aria-label="Flip piece"
+                title="Flip (Mirror)"
+                onPointerDown={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // Mirror the anchor horizontally
+                  if (anchorRef.current) {
+                    const { row, col } = anchorRef.current;
+                    const size = piece.shape[0].length - 1;
+                    const flipped = { row, col: size - col };
+                    anchorRef.current = flipped;
+                    setDragAnchor(flipped);
+                  }
+                  onPieceFlip(piece.instanceId);
+                }}
+              >
+                <FontAwesomeIcon icon={faLeftRight} />
+              </button>
+            )}
+          {!isPlaced && rotationEnabled && (
+            <button
+              className="rotate-button"
+              aria-label="Rotate piece"
+              title="Rotate"
+              onPointerDown={(e) => {
+                // Prevent drag starting from rotate button on touch
+                e.preventDefault();
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                // Rotate local drag anchor so the touched cell remains under the finger
+                if (anchorRef.current) {
+                  const { row, col } = anchorRef.current;
+                  const size = piece.shape.length - 1;
+                  const isTwoState =
+                    piece.id === "I" || piece.id === "S" || piece.id === "Z";
+                  const goingCCW = isTwoState && piece.rotation === 1;
+                  const rotated = goingCCW
+                    ? { row: size - col, col: row }
+                    : { row: col, col: size - row };
+                  anchorRef.current = rotated;
+                  setDragAnchor(rotated);
+                }
+                onPieceRotate(piece.instanceId);
+              }}
+            >
+              <FontAwesomeIcon icon={faRotateRight} />
+            </button>
+          )}
+        </div>
       </div>
 
       <div
         className="piece-preview"
         style={{
-          width: piece.shape[0].length * CELL_SIZE * 0.5,
-          height: piece.shape.length * CELL_SIZE * 0.5,
+          width: 5 * CELL_SIZE * 0.5,
+          height: 5 * CELL_SIZE * 0.5,
           position: "relative",
         }}
         ref={previewRef}
       >
-        {piece.shape.map((row: number[], rowIndex: number) => (
-          <React.Fragment key={rowIndex}>
-            {row.map((cell: number, colIndex: number) => (
-              <div
-                key={`${rowIndex}-${colIndex}`}
-                className="preview-cell"
-                style={{
-                  position: "absolute",
-                  left: colIndex * CELL_SIZE * 0.5,
-                  top: rowIndex * CELL_SIZE * 0.5,
-                  width: CELL_SIZE * 0.5,
-                  height: CELL_SIZE * 0.5,
-                  backgroundColor: cell ? piece.color : "transparent",
-                  border: cell ? "1px solid #444" : "none",
-                  opacity: isPlaced ? 0.3 : 1,
-                }}
-              />
-            ))}
-          </React.Fragment>
-        ))}
+        {piece.shape.map((row: number[], rowIndex: number) => {
+          // Calculate offset to center the piece in 5x5 grid
+          const pieceWidth = piece.shape[0].length;
+          const pieceHeight = piece.shape.length;
+          const offsetX = Math.floor((5 - pieceWidth) / 2);
+          const offsetY = Math.floor((5 - pieceHeight) / 2);
+
+          return (
+            <React.Fragment key={rowIndex}>
+              {row.map((cell: number, colIndex: number) => (
+                <div
+                  key={`${rowIndex}-${colIndex}`}
+                  className="preview-cell"
+                  style={{
+                    position: "absolute",
+                    left: (colIndex + offsetX) * CELL_SIZE * 0.5,
+                    top: (rowIndex + offsetY) * CELL_SIZE * 0.5,
+                    width: CELL_SIZE * 0.5,
+                    height: CELL_SIZE * 0.5,
+                    backgroundColor: cell ? piece.color : "transparent",
+                    border: cell ? "1px solid #444" : "none",
+                    opacity: isPlaced ? 0.3 : 1,
+                  }}
+                />
+              ))}
+            </React.Fragment>
+          );
+        })}
       </div>
 
       {isPlaced && <div className="placed-indicator">✓</div>}
@@ -350,8 +412,12 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
   selectedPiece,
   onPieceClick,
   onPieceRotate,
+  onPieceFlip,
   onStartDrag,
   onEndDrag,
+  rotationEnabled,
+  flipEnabled,
+  score,
 }) => {
   const [draggedPiece, setDraggedPiece] = useState<TetrisPiece | null>(null);
   const [pointerPos, setPointerPos] = useState<{ x: number; y: number } | null>(
@@ -420,7 +486,13 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
 
   return (
     <div className="piece-selection">
-      <h3>Available Pieces</h3>
+      <div className="piece-selection-header">
+        <h3>Available Pieces</h3>
+        <div className="score-display">
+          <span className="score-label">Score:</span>
+          <span className="score-value">{score}</span>
+        </div>
+      </div>
       <div className="pieces-container">
         {pieces.map((piece) => (
           <DraggablePiece
@@ -429,11 +501,14 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
             isSelected={selectedPiece?.instanceId === piece.instanceId}
             onPieceClick={onPieceClick}
             onPieceRotate={onPieceRotate}
+            onPieceFlip={onPieceFlip}
             setDraggedPiece={setDraggedPiece}
             setPointerPos={setPointerPos}
             setDragAnchor={setDragAnchor}
             onStartDrag={onStartDrag}
             onEndDrag={onEndDrag}
+            rotationEnabled={rotationEnabled}
+            flipEnabled={flipEnabled}
           />
         ))}
       </div>

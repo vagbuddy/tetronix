@@ -1,12 +1,14 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useGameState } from "../hooks/useGameState";
 import GameBoard from "./GameBoard";
 import PieceSelection from "./PieceSelection";
 import GameInfo from "./GameInfo";
 import ScoreCorner from "./ScoreCorner";
 import GameOverModal from "./GameOverModal";
+import DifficultySelector from "./DifficultySelector";
 import "./Game.css";
 import { isMobile } from "../utils/DeviceDetection";
+import type { Difficulty } from "../types/GameTypes";
 
 const Game: React.FC = () => {
   const {
@@ -15,22 +17,31 @@ const Game: React.FC = () => {
     deselectPiece,
     placePiece,
     rotatePiece,
+    flipPiece,
     startDrag,
     endDrag,
     pause,
     resume,
     restart,
+    continueGame,
+    setDifficulty,
   } = useGameState();
+
+  const rotationEnabled = useMemo(
+    () => state.difficulty === "casual" || state.difficulty === "expert",
+    [state.difficulty]
+  );
+  const flipEnabled = useMemo(
+    () => state.difficulty === "insane",
+    [state.difficulty]
+  );
 
   return (
     <div className="game-container">
-      <ScoreCorner score={state.score} />
-      {!isMobile() && (
-        <div className="game-header">
-          <h1>Sudoku Tetris Puzzle</h1>
-          <p>Drag and drop Tetris pieces to fill the Sudoku board!</p>
-        </div>
-      )}
+      <DifficultySelector
+        difficulty={state.difficulty}
+        onDifficultyChange={setDifficulty}
+      />
 
       <div className="game-content">
         <div className="game-main">
@@ -48,8 +59,12 @@ const Game: React.FC = () => {
             selectedPiece={state.selectedPiece}
             onPieceClick={selectPiece}
             onPieceRotate={rotatePiece}
+            onPieceFlip={flipPiece}
             onStartDrag={startDrag}
             onEndDrag={endDrag}
+            rotationEnabled={rotationEnabled}
+            flipEnabled={flipEnabled}
+            score={state.score}
           />
         </div>
 
@@ -63,6 +78,7 @@ const Game: React.FC = () => {
               onPause={pause}
               onResume={resume}
               onRestart={restart}
+              rotationEnabled={rotationEnabled}
             />
           </div>
         )}
@@ -85,6 +101,7 @@ const Game: React.FC = () => {
           score={state.score}
           startTime={state.startTime}
           onRestart={restart}
+          onContinue={continueGame}
         />
       )}
     </div>

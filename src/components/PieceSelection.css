@@ -9,12 +9,44 @@
   margin-top: 20px;
 }
 
+.piece-selection-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .piece-selection h3 {
-  margin: 0 0 20px 0;
-  text-align: center;
+  margin: 0;
+  font-family: 'Orbitron', monospace;
   color: #3498db;
   font-size: 1.3rem;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+.score-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6px 14px;
+  border-radius: 8px;
+  font-family: 'Orbitron', monospace;
+}
+
+.score-label {
+  font-size: 0.9rem;
+  color: rgba(255, 255, 255, 0.7);
+  font-weight: 500;
+}
+
+.score-value {
+  font-size: 1.2rem;
+  color: #f39c12;
+  font-weight: 700;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .pieces-container {
@@ -32,8 +64,11 @@
   cursor: grab;
   transition: all 0.3s ease;
   position: relative;
-  min-width: 120px;
+  width: 140px;
+  min-width: 140px;
   text-align: center;
+  display: flex;
+  flex-direction: column;
   /* Prevent touch scrolling while dragging - keep for modern browsers */
   -ms-touch-action: none;
   -webkit-touch-action: none;
@@ -80,11 +115,19 @@
 .piece-name {
   font-weight: bold;
   font-size: 1.2rem;
+  font-family: 'Orbitron', monospace;
   color: #fff;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
 }
 
-.rotate-button {
+.piece-controls {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.rotate-button,
+.flip-button {
   background: linear-gradient(135deg, #e74c3c, #c0392b);
   border: none;
   border-radius: 50%;
@@ -99,18 +142,32 @@
   justify-content: center;
 }
 
-.rotate-button:hover {
+.flip-button {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+}
+
+.rotate-button:hover,
+.flip-button:hover {
   transform: scale(1.1);
+}
+
+.rotate-button:hover {
   box-shadow: 0 2px 8px rgba(231, 76, 60, 0.4);
 }
 
+.flip-button:hover {
+  box-shadow: 0 2px 8px rgba(52, 152, 219, 0.4);
+}
+
 .piece-preview {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 0;
   margin: 0 auto;
   position: relative;
+  width: 100px; /* 5 * CELL_SIZE * 0.5 = 5 * 40 * 0.5 = 100px */
+  height: 100px;
 }
 
 .preview-cell {
@@ -155,8 +212,13 @@
   }
   
   .piece-container {
-    min-width: 100px;
-    width: 100%;
-    max-width: 200px;
+    width: 120px;
+    min-width: 120px;
+    padding: 10px;
+  }
+
+  .piece-preview {
+    width: 80px;
+    height: 80px;
   }
 }

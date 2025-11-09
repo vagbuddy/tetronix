@@ -9,6 +9,7 @@ interface GameInfoProps {
   onPause: () => void;
   onResume: () => void;
   onRestart: () => void;
+  rotationEnabled: boolean;
 }
 
 const GameInfo: React.FC<GameInfoProps> = ({
@@ -19,6 +20,7 @@ const GameInfo: React.FC<GameInfoProps> = ({
   onPause,
   onResume,
   onRestart,
+  rotationEnabled,
 }) => {
   return (
     <div className="game-info">
@@ -51,19 +53,26 @@ const GameInfo: React.FC<GameInfoProps> = ({
         <div className="instruction-list">
           <div className="instruction-item">
             <span className="instruction-icon">🖱️</span>
-            Click on a piece to select it
+            Click a piece, then click the board to place it
           </div>
-          <div className="instruction-item">
-            <span className="instruction-icon">🔄</span>
-            Click rotate button to turn pieces
-          </div>
-          <div className="instruction-item">
-            <span className="instruction-icon">📍</span>
-            Click on the board to place pieces
-          </div>
+          {rotationEnabled ? (
+            <div className="instruction-item">
+              <span className="instruction-icon">🔄</span>
+              Use the rotate button to turn pieces before placing
+            </div>
+          ) : (
+            <div className="instruction-item">
+              <span className="instruction-icon">�</span>
+              Rotation disabled in this mode; orientation is random
+            </div>
+          )}
           <div className="instruction-item">
             <span className="instruction-icon">🎯</span>
-            Fill complete rows, columns, or 3×3 blocks to clear them
+            Fill rows, columns, or 3×3 blocks to clear them
+          </div>
+          <div className="instruction-item">
+            <span className="instruction-icon">🧩</span>
+            Place all pieces to receive a new batch
           </div>
         </div>
       </div>
@@ -81,18 +90,31 @@ const GameInfo: React.FC<GameInfoProps> = ({
               <li>3 types cleared: ×3</li>
             </ul>
           </li>
-          <li>Example: 1 row + 1 block = (100+500) × 2 = 1,200 pts</li>
+          <li>Pentomino shapes appear in Hard & Impossible.</li>
+          <li>Rotation available only in Casual & Expert.</li>
         </ul>
       </div>
 
       <div className="game-rules">
         <h3>Rules</h3>
         <ul>
-          <li>Place all 3 pieces on the board</li>
-          <li>Pieces cannot overlap with placed pieces</li>
-          <li>Cleared areas stay empty - pieces don't fall</li>
-          <li>New pieces automatically appear when all are placed</li>
-          <li>Game over when no pieces can be placed</li>
+          <li>Place all pieces to receive a new batch.</li>
+          <li>No gravity: cleared cells remain empty.</li>
+          <li>Game over when no remaining piece fits.</li>
+          <li>
+            Difficulty effects:
+            <ul>
+              <li>
+                Casual/Master: tetrominoes only. Casual has rotation, Master
+                doesn't (random start orientation).
+              </li>
+              <li>Expert: tetrominoes + pentominoes, rotation enabled.</li>
+              <li>
+                Insane: tetrominoes + pentominoes, rotation disabled (random
+                orientation).
+              </li>
+            </ul>
+          </li>
         </ul>
       </div>
     </div>

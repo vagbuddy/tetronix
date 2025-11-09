@@ -5,12 +5,14 @@ interface GameOverModalProps {
   score: number;
   startTime: number;
   onRestart: () => void;
+  onContinue: () => void;
 }
 
 const GameOverModal: React.FC<GameOverModalProps> = ({
   score,
   startTime,
   onRestart,
+  onContinue,
 }) => {
   const formatGameTime = (startTime: number): string => {
     const elapsedMs = Date.now() - startTime;
@@ -41,9 +43,14 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
         </div>
 
-        <button className="restart-button" onClick={onRestart}>
-          Play Again
-        </button>
+        <div className="game-over-buttons">
+          <button className="continue-button" onClick={onContinue}>
+            Continue
+          </button>
+          <button className="restart-button" onClick={onRestart}>
+            Restart
+          </button>
+        </div>
       </div>
     </div>
   );
