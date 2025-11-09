@@ -606,7 +606,6 @@ const GameBoard: React.FC<GameBoardProps> = ({
           position: "relative",
           width: GRID_WIDTH * cellSize,
           height: GRID_HEIGHT * cellSize,
-          border: "2px solid #fff",
           backgroundColor: "#1a1a1a",
           cursor: selectedPiece ? "crosshair" : "default",
         }}
