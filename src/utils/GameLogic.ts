@@ -664,13 +664,13 @@ export const canPlaceAnyPiece = (
       variants.push({ ...base, shape, rotation, isMirrored });
     };
 
-    // Generate rotations (respect allowRotate)
-    // When allowRotate is false, rotationCount = 1, so only rot=0 (current shape, no additional rotation)
-    // When allowRotate is true, rotationCount = allowed (1, 2, or 4 depending on piece symmetry)
-    const rotationCount = allowRotate ? allowed : 1;
+    // When mirror is allowed, we need to check all rotations of both normal AND mirrored versions
+    // because flipping changes the piece fundamentally, and each orientation of the flipped piece
+    // is different from the original
+    const rotationCount = allowRotate ? allowed : allowMirror ? allowed : 1;
+
     for (let rot = 0; rot < rotationCount; rot++) {
       // performRotate with rot=0 returns the piece's current shape without modification
-      // This ensures Master/Insane check pieces only in their pre-rotated state
       const shape = performRotate(base.shape, rot);
       addVariant(shape, rot, false);
       // If chiral and mirroring allowed, also include mirrored version of this rotation
