@@ -113,6 +113,7 @@ const Game: React.FC = () => {
         <GameOverModal
           score={state.score}
           startTime={state.startTime}
+          difficulty={state.difficulty as Difficulty}
           onRestart={restart}
           onContinue={continueGame}
         />

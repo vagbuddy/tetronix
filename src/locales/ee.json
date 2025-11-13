@@ -16,6 +16,9 @@
   "finalScore": "Lõplik skoor",
   "timePlayed": "Mängitud aeg",
   "continue": "Jätka",
+  "yourName": "Sinu nimi",
+  "submitScore": "Saada skoor",
+  "submitted": "Saadetud",
   "howToPlay": "Kuidas mängida",
   "instructions": {
     "click": "Klõpsa tükil, seejärel klõpsa laual selle paigutamiseks",

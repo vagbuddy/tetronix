@@ -13,13 +13,9 @@ const LanguageSelector: React.FC = () => {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  // Set initial language by browser
-  useEffect(() => {
-    const browserLang = navigator.language.slice(0, 2);
-    if (languages.some((l) => l.code === browserLang)) {
-      i18n.changeLanguage(browserLang);
-    }
-  }, [i18n]);
+  // Initial language is handled by i18next-browser-languagedetector
+  // which loads from localStorage first, then falls back to navigator.
+  // No override here to preserve the user’s saved choice.
 
   // Close dropdown on outside click
   useEffect(() => {

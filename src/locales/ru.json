@@ -16,6 +16,9 @@
   "finalScore": "Финальный счёт",
   "timePlayed": "Время игры",
   "continue": "Продолжить",
+  "yourName": "Ваше имя",
+  "submitScore": "Отправить счёт",
+  "submitted": "Отправлено",
   "howToPlay": "Как играть",
   "instructions": {
     "click": "Кликните на фигуру, затем на доску, чтобы разместить её",

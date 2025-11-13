@@ -16,6 +16,9 @@
   "finalScore": "Final Score",
   "timePlayed": "Time Played",
   "continue": "Continue",
+  "yourName": "Your name",
+  "submitScore": "Submit score",
+  "submitted": "Submitted",
   "howToPlay": "How to Play",
   "instructions": {
     "click": "Click a piece, then click the board to place it",

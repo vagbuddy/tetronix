@@ -687,8 +687,17 @@ export const canPlaceAnyPiece = (
   for (const piece of unplacedPieces) {
     const orientations = enumerateOrientations(piece);
     for (const oriented of orientations) {
-      for (let y = 0; y < GRID_HEIGHT; y++) {
-        for (let x = 0; x < GRID_WIDTH; x++) {
+      // Allow the piece's empty padding to hang outside the board edges.
+      // We therefore scan a larger search space for the top-left origin.
+      const shapeHeight = oriented.shape.length;
+      const shapeWidth = oriented.shape[0]?.length || 0;
+      const minY = -(shapeHeight - 1);
+      const maxY = GRID_HEIGHT - 1;
+      const minX = -(shapeWidth - 1);
+      const maxX = GRID_WIDTH - 1;
+
+      for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) {
           if (isValidPlacement(oriented, { x, y }, grid)) {
             return true; // Found at least one valid placement
           }

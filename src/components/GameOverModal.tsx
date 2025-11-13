@@ -1,10 +1,17 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import "./GameOverModal.css";
+import {
+  getSavedUsername,
+  saveUsername,
+  submitScore,
+} from "../utils/leaderboard";
+import type { Difficulty } from "../types/GameTypes";
 
 interface GameOverModalProps {
   score: number;
   startTime: number;
+  difficulty?: Difficulty;
   onRestart: () => void;
   onContinue: () => void;
 }
@@ -12,10 +19,38 @@ interface GameOverModalProps {
 const GameOverModal: React.FC<GameOverModalProps> = ({
   score,
   startTime,
+  difficulty,
   onRestart,
   onContinue,
 }) => {
   const { t } = useTranslation();
+  const [name, setName] = useState<string>(getSavedUsername() || "");
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+
+  const playedSeconds = useMemo(
+    () => Math.floor((Date.now() - startTime) / 1000),
+    [startTime]
+  );
+
+  const onSubmitScore = async () => {
+    if (!name.trim()) return;
+    setSubmitting(true);
+    try {
+      saveUsername(name.trim());
+      await submitScore({
+        name: name.trim(),
+        score,
+        difficulty: (difficulty ?? "casual") as Difficulty,
+        playedSeconds,
+      });
+      setSubmitted(true);
+    } catch (e) {
+      // swallow errors for now; could show a toast
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const formatGameTime = (startTime: number): string => {
     const elapsedMs = Date.now() - startTime;
@@ -43,6 +78,38 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
           <div className="stat-item">
             <span className="stat-label">{t("timePlayed")}</span>
             <span className="stat-value">{formatGameTime(startTime)}</span>
+          </div>
+        </div>
+
+        <div className="leaderboard-submit" style={{ marginTop: 12 }}>
+          <label style={{ display: "block", marginBottom: 6 }}>
+            {t("yourName", { defaultValue: "Your name" })}
+          </label>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="text"
+              value={name}
+              maxLength={24}
+              onChange={(e) => setName(e.target.value)}
+              placeholder={t("yourName", { defaultValue: "Your name" })}
+              style={{
+                flex: 1,
+                padding: 8,
+                borderRadius: 6,
+                border: "1px solid #555",
+                background: "#222",
+                color: "#eee",
+              }}
+            />
+            <button
+              className="submit-score-button"
+              onClick={onSubmitScore}
+              disabled={!name.trim() || submitting || submitted}
+            >
+              {submitted
+                ? t("submitted", { defaultValue: "Submitted" })
+                : t("submitScore", { defaultValue: "Submit score" })}
+            </button>
           </div>
         </div>
 

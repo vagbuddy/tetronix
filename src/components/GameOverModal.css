@@ -148,6 +148,47 @@
   box-shadow: 0 2px 10px rgba(231, 76, 60, 0.4);
 }
 
+/* Leaderboard submit styles */
+.leaderboard-submit {
+  margin-top: 12px;
+  text-align: left;
+}
+
+.submit-score-button {
+  border: none;
+  padding: 12px 18px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: 'Orbitron', monospace;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-radius: 10px;
+  cursor: pointer;
+  background: linear-gradient(135deg, #4a90e2, #357abd);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(53, 122, 189, 0.4);
+  transition: all 0.25s ease;
+  white-space: nowrap;
+}
+
+.submit-score-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: linear-gradient(135deg, #3f7fc7, #2f6ba6);
+  box-shadow: 0 6px 18px rgba(53, 122, 189, 0.6);
+}
+
+.submit-score-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 3px 10px rgba(53, 122, 189, 0.4);
+}
+
+.submit-score-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+  background: linear-gradient(135deg, #607d8b, #546e7a);
+  box-shadow: none;
+}
+
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .game-over-modal {
@@ -181,5 +222,13 @@
     max-width: 100%;
     width: 100%;
     padding: 12px 30px;
+  }
+
+  .leaderboard-submit > div {
+    flex-direction: column;
+  }
+
+  .submit-score-button {
+    width: 100%;
   }
 }

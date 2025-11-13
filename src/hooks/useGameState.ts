@@ -23,9 +23,22 @@ import {
   canPlaceAnyPiece,
 } from "../utils/GameLogic";
 
+const DIFFICULTY_KEY = "tetronix:difficulty";
+
+const getSavedDifficulty = (): Difficulty => {
+  try {
+    if (typeof window === "undefined") return "casual";
+    const v = localStorage.getItem(DIFFICULTY_KEY);
+    if (v === "casual" || v === "master" || v === "expert" || v === "insane") {
+      return v as Difficulty;
+    }
+  } catch {}
+  return "casual";
+};
+
 const initialState: GameState = {
   grid: createEmptyGrid(),
-  availablePieces: generateRandomPieces("casual"),
+  availablePieces: generateRandomPieces(getSavedDifficulty()),
   selectedPiece: null,
   score: 0,
   clearsCount: 0,
@@ -33,7 +46,7 @@ const initialState: GameState = {
   paused: false,
   startTime: Date.now(),
   clearingCells: [],
-  difficulty: "casual",
+  difficulty: getSavedDifficulty(),
 };
 
 const rotationEnabled = (difficulty: Difficulty) =>
@@ -275,6 +288,11 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     case "SET_DIFFICULTY": {
       // Changing difficulty restarts the game with new pool/rules
       const newDifficulty = action.difficulty;
+      try {
+        if (typeof window !== "undefined") {
+          localStorage.setItem(DIFFICULTY_KEY, newDifficulty);
+        }
+      } catch {}
       return {
         ...initialState,
         difficulty: newDifficulty,
