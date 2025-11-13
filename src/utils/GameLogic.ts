@@ -305,16 +305,21 @@ export const createEmptyGrid = (): Cell[][] => {
     );
 };
 
-export const createRandomPiece = (difficulty: Difficulty): TetrisPiece => {
+import { type RngState, nextInt } from "./prng";
+
+export const createRandomPiece = (
+  difficulty: Difficulty,
+  rand: () => number = Math.random
+): TetrisPiece => {
   const pool = getPiecePool(difficulty);
-  const template = pool[Math.floor(Math.random() * pool.length)];
+  const template = pool[Math.floor(rand() * pool.length)];
 
   // Base piece
   let piece: TetrisPiece = {
     ...template,
-    instanceId: `${template.id}-${Date.now()}-${Math.random()
-      .toString(36)
-      .substr(2, 9)}`,
+    instanceId: `${template.id}-${Date.now()}-${Math.floor(
+      rand() * 1e9
+    ).toString(36)}`,
     position: { x: 0, y: 0 },
     rotation: 0,
     isPlaced: false,
@@ -324,7 +329,7 @@ export const createRandomPiece = (difficulty: Difficulty): TetrisPiece => {
   // For modes without rotation, randomize initial orientation for variety
   const rotationsDisabled = difficulty === "master" || difficulty === "insane";
   if (rotationsDisabled) {
-    const times = Math.floor(Math.random() * 4); // 0..3 clockwise rotations
+    const times = Math.floor(rand() * 4); // 0..3 clockwise rotations
     for (let i = 0; i < times; i++) {
       piece = rotatePiece(piece);
     }
@@ -333,10 +338,57 @@ export const createRandomPiece = (difficulty: Difficulty): TetrisPiece => {
   return piece;
 };
 
-export const generateRandomPieces = (difficulty: Difficulty): TetrisPiece[] => {
+export const generateRandomPieces = (
+  difficulty: Difficulty,
+  rand: () => number = Math.random
+): TetrisPiece[] => {
   return Array(PIECE_SELECTION_COUNT)
     .fill(null)
-    .map(() => createRandomPiece(difficulty));
+    .map(() => createRandomPiece(difficulty, rand));
+};
+
+export const createRandomPieceWithRng = (
+  difficulty: Difficulty,
+  rng: RngState
+): { piece: TetrisPiece; rng: RngState } => {
+  const pool = getPiecePool(difficulty);
+  let sel = nextInt(rng, pool.length);
+  const template = pool[sel.value];
+  // Build a deterministic-looking instanceId using rng state
+  const instanceId = `${template.id}-${sel.state.toString(16)}`;
+  let piece: TetrisPiece = {
+    ...template,
+    instanceId,
+    position: { x: 0, y: 0 },
+    rotation: 0,
+    isPlaced: false,
+    isDragging: false,
+  };
+  // Randomize orientation for rotation-disabled modes
+  const rotationsDisabled = difficulty === "master" || difficulty === "insane";
+  if (rotationsDisabled) {
+    let rotPick = nextInt(sel.state, 4);
+    for (let i = 0; i < rotPick.value; i++) {
+      piece = rotatePiece(piece);
+    }
+    return { piece, rng: rotPick.state };
+  }
+  return { piece, rng: sel.state };
+};
+
+export const generateRandomPiecesWithRng = (
+  difficulty: Difficulty,
+  rng: RngState,
+  count = PIECE_SELECTION_COUNT
+): { pieces: TetrisPiece[]; rng: RngState } => {
+  const out: TetrisPiece[] = [];
+  let s = rng;
+  for (let i = 0; i < count; i++) {
+    const r = createRandomPieceWithRng(difficulty, s);
+    out.push(r.piece);
+    s = r.rng;
+  }
+  return { pieces: out, rng: s };
 };
 
 // Rotate a 3x3 matrix 90 degrees clockwise

@@ -114,6 +114,9 @@ const Game: React.FC = () => {
           score={state.score}
           startTime={state.startTime}
           difficulty={state.difficulty as Difficulty}
+          seed={state.seed}
+          moves={state.moveLog}
+          canSubmit={!!state.seedFromServer}
           onRestart={restart}
           onContinue={continueGame}
         />

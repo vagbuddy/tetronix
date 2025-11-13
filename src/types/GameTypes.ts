@@ -15,6 +15,15 @@ export interface ClearedCell {
   color?: string;
 }
 
+export interface Move {
+  pieceId: string;
+  rotation: number;
+  isMirrored?: boolean;
+  x: number;
+  y: number;
+  timestamp: number;
+}
+
 export interface GameState {
   grid: Cell[][];
   availablePieces: TetrisPiece[];
@@ -26,6 +35,10 @@ export interface GameState {
   startTime: number;
   clearingCells: ClearedCell[]; // transient overlay for clear animation
   difficulty: Difficulty;
+  seed: number; // deterministic seed for PRNG
+  rng: number; // current RNG state
+  moveLog: Move[]; // append-only move log
+  seedFromServer?: boolean; // true when seed was issued by backend
 }
 
 export interface TetrisPiece {
@@ -61,6 +74,13 @@ export type GameAction =
   | { type: "RESTART" }
   | { type: "CONTINUE_GAME" }
   | { type: "SET_DIFFICULTY"; difficulty: Difficulty }
+  | {
+      type: "SET_DIFFICULTY_WITH_SEED";
+      difficulty: Difficulty;
+      seed: number;
+      seedFromServer?: boolean;
+    }
+  | { type: "RESET_WITH_SEED"; seed: number; seedFromServer?: boolean }
   | { type: "CLEARING_DONE" };
 
 // Difficulty levels and rules summary:

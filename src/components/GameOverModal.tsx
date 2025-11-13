@@ -4,14 +4,18 @@ import "./GameOverModal.css";
 import {
   getSavedUsername,
   saveUsername,
-  submitScore,
+  submitGame,
+  getLastSubmitAt,
 } from "../utils/leaderboard";
-import type { Difficulty } from "../types/GameTypes";
+import type { Difficulty, Move } from "../types/GameTypes";
 
 interface GameOverModalProps {
   score: number;
   startTime: number;
   difficulty?: Difficulty;
+  seed: number;
+  moves: Move[];
+  canSubmit?: boolean;
   onRestart: () => void;
   onContinue: () => void;
 }
@@ -20,13 +24,17 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   score,
   startTime,
   difficulty,
+  seed,
+  moves,
   onRestart,
   onContinue,
+  canSubmit,
 }) => {
   const { t } = useTranslation();
   const [name, setName] = useState<string>(getSavedUsername() || "");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const lastSubmitAt = getLastSubmitAt();
 
   const playedSeconds = useMemo(
     () => Math.floor((Date.now() - startTime) / 1000),
@@ -35,16 +43,25 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
 
   const onSubmitScore = async () => {
     if (!name.trim()) return;
+    // UX cooldown: block if last submit within 5 minutes
+    if (lastSubmitAt && Date.now() - lastSubmitAt < 5 * 60 * 1000) {
+      return;
+    }
     setSubmitting(true);
     try {
-      saveUsername(name.trim());
-      await submitScore({
+      const trimmed = name.trim();
+      const res = await submitGame({
         name: name.trim(),
-        score,
+        userScore: score,
         difficulty: (difficulty ?? "casual") as Difficulty,
         playedSeconds,
+        seed,
+        moves,
       });
-      setSubmitted(true);
+      if ((res as any)?.ok) {
+        saveUsername(trimmed);
+        setSubmitted(true);
+      }
     } catch (e) {
       // swallow errors for now; could show a toast
     } finally {
@@ -104,7 +121,15 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
             <button
               className="submit-score-button"
               onClick={onSubmitScore}
-              disabled={!name.trim() || submitting || submitted}
+              disabled={
+                !name.trim() ||
+                submitting ||
+                submitted ||
+                canSubmit === false ||
+                (lastSubmitAt
+                  ? Date.now() - lastSubmitAt < 5 * 60 * 1000
+                  : false)
+              }
             >
               {submitted
                 ? t("submitted", { defaultValue: "Submitted" })

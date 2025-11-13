@@ -4,11 +4,12 @@ import {
   GameAction,
   TetrisPiece,
   ClearedCell,
+  Move,
 } from "../types/GameTypes";
 import type { Difficulty } from "../types/GameTypes";
 import {
   createEmptyGrid,
-  generateRandomPieces,
+  generateRandomPiecesWithRng,
   rotatePiece,
   flipPiece,
   isValidPlacement,
@@ -22,6 +23,8 @@ import {
   calculateScore,
   canPlaceAnyPiece,
 } from "../utils/GameLogic";
+import { randomSeed, type RngState } from "../utils/prng";
+import { startGame } from "../utils/leaderboard";
 
 const DIFFICULTY_KEY = "tetronix:difficulty";
 
@@ -36,9 +39,15 @@ const getSavedDifficulty = (): Difficulty => {
   return "casual";
 };
 
+const initialSeed: RngState = randomSeed();
+const initialGen = generateRandomPiecesWithRng(
+  getSavedDifficulty(),
+  initialSeed
+);
+
 const initialState: GameState = {
   grid: createEmptyGrid(),
-  availablePieces: generateRandomPieces(getSavedDifficulty()),
+  availablePieces: initialGen.pieces,
   selectedPiece: null,
   score: 0,
   clearsCount: 0,
@@ -47,6 +56,10 @@ const initialState: GameState = {
   startTime: Date.now(),
   clearingCells: [],
   difficulty: getSavedDifficulty(),
+  seed: initialSeed,
+  rng: initialGen.rng,
+  moveLog: [],
+  seedFromServer: false,
 };
 
 const rotationEnabled = (difficulty: Difficulty) =>
@@ -73,7 +86,6 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     }
 
     case "PLACE_PIECE": {
-      // Find the piece to place (either selected or by instanceId)
       let piece = state.selectedPiece;
       if (!piece && action.pieceId) {
         piece =
@@ -172,25 +184,40 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 
       // Check if all pieces are placed - if so, generate new pieces
       const allPiecesPlaced = updatedPieces.every((p) => p.isPlaced);
-      const finalPieces = allPiecesPlaced
-        ? generateRandomPieces(state.difficulty)
-        : updatedPieces;
+      let nextPieces = updatedPieces;
+      let nextRng = state.rng;
+      if (allPiecesPlaced) {
+        const gen = generateRandomPiecesWithRng(state.difficulty, state.rng);
+        nextPieces = gen.pieces;
+        nextRng = gen.rng;
+      }
 
       // Check if any remaining pieces can be placed on the board
-      const canContinue = canPlaceAnyPiece(finalPieces, finalGrid, {
+      const canContinue = canPlaceAnyPiece(nextPieces, finalGrid, {
         allowRotate: rotationEnabled(state.difficulty),
         allowMirror: flipEnabled(state.difficulty),
       });
 
+      const newMove: Move = {
+        pieceId: pieceToPlace.id,
+        rotation: pieceToPlace.rotation || 0,
+        isMirrored: !!pieceToPlace.isMirrored,
+        x: action.position.x,
+        y: action.position.y,
+        timestamp: Date.now(),
+      };
+
       return {
         ...state,
         grid: finalGrid,
-        availablePieces: finalPieces,
+        availablePieces: nextPieces,
         selectedPiece: null,
         score: state.score + scoreIncrease,
         clearsCount: state.clearsCount + totalClears,
         clearingCells,
         gameOver: !canContinue,
+        rng: nextRng,
+        moveLog: [...state.moveLog, newMove],
       };
     }
 
@@ -273,13 +300,19 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     case "RESUME":
       return { ...state, paused: false };
 
-    case "RESTART":
+    case "RESTART": {
+      const seed = randomSeed();
+      const gen = generateRandomPiecesWithRng(state.difficulty, seed);
       return {
         ...initialState,
         difficulty: state.difficulty,
-        availablePieces: generateRandomPieces(state.difficulty),
+        availablePieces: gen.pieces,
         startTime: Date.now(),
+        seed,
+        rng: gen.rng,
+        moveLog: [],
       };
+    }
 
     case "CONTINUE_GAME":
       // Allow user to dismiss game over screen and continue playing
@@ -293,11 +326,47 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
           localStorage.setItem(DIFFICULTY_KEY, newDifficulty);
         }
       } catch {}
+      const seed = randomSeed();
+      const gen = generateRandomPiecesWithRng(newDifficulty, seed);
       return {
         ...initialState,
         difficulty: newDifficulty,
-        availablePieces: generateRandomPieces(newDifficulty),
+        availablePieces: gen.pieces,
         startTime: Date.now(),
+        seed,
+        rng: gen.rng,
+        moveLog: [],
+        seedFromServer: false,
+      };
+    }
+
+    case "SET_DIFFICULTY_WITH_SEED": {
+      const { difficulty, seed, seedFromServer } = action as any;
+      const gen = generateRandomPiecesWithRng(difficulty, seed);
+      return {
+        ...initialState,
+        difficulty,
+        availablePieces: gen.pieces,
+        startTime: Date.now(),
+        seed,
+        rng: gen.rng,
+        moveLog: [],
+        seedFromServer: !!seedFromServer,
+      };
+    }
+
+    case "RESET_WITH_SEED": {
+      const { seed, seedFromServer } = action as any;
+      const gen = generateRandomPiecesWithRng(state.difficulty, seed);
+      return {
+        ...initialState,
+        difficulty: state.difficulty,
+        availablePieces: gen.pieces,
+        startTime: Date.now(),
+        seed,
+        rng: gen.rng,
+        moveLog: [],
+        seedFromServer: !!seedFromServer,
       };
     }
 
@@ -352,7 +421,18 @@ export const useGameState = () => {
   }, []);
 
   const restart = useCallback(() => {
-    dispatch({ type: "RESTART" });
+    (async () => {
+      const res = await startGame();
+      if ((res as any)?.seed != null) {
+        dispatch({
+          type: "RESET_WITH_SEED",
+          seed: (res as any).seed,
+          seedFromServer: true,
+        });
+      } else {
+        dispatch({ type: "RESTART" });
+      }
+    })();
   }, []);
 
   const continueGame = useCallback(() => {
@@ -360,7 +440,19 @@ export const useGameState = () => {
   }, []);
 
   const setDifficulty = useCallback((difficulty: Difficulty) => {
-    dispatch({ type: "SET_DIFFICULTY", difficulty });
+    (async () => {
+      const res = await startGame();
+      if ((res as any)?.seed != null) {
+        dispatch({
+          type: "SET_DIFFICULTY_WITH_SEED",
+          difficulty,
+          seed: (res as any).seed,
+          seedFromServer: true,
+        });
+      } else {
+        dispatch({ type: "SET_DIFFICULTY", difficulty });
+      }
+    })();
   }, []);
 
   // Auto-clear the clearing overlay after the animation duration
@@ -370,6 +462,24 @@ export const useGameState = () => {
       return () => clearTimeout(tid);
     }
   }, [state.clearingCells.length]);
+
+  // On first mount, try to request a server-issued seed
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await startGame();
+      if (!cancelled && (res as any)?.seed != null) {
+        dispatch({
+          type: "RESET_WITH_SEED",
+          seed: (res as any).seed,
+          seedFromServer: true,
+        });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return {
     state,
