@@ -28,10 +28,11 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const playedSeconds = useMemo(
-    () => Math.floor((Date.now() - startTime) / 1000),
-    [startTime]
-  );
+  // Freeze played time at the moment the modal mounts (game over)
+  const playedSeconds = useMemo(() => {
+    return Math.floor((Date.now() - startTime) / 1000);
+    // startTime is stable for a game session; we compute once on mount
+  }, [startTime]);
 
   const onSubmitScore = async () => {
     if (!name.trim()) return;
@@ -52,17 +53,16 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
     }
   };
 
-  const formatGameTime = (startTime: number): string => {
-    const elapsedMs = Date.now() - startTime;
-    const totalSeconds = Math.floor(elapsedMs / 1000);
+  const formatSeconds = (totalSeconds: number): string => {
     const minutes = Math.floor(totalSeconds / 60);
     const seconds = totalSeconds % 60;
-
-    if (minutes > 0) {
-      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
-    }
+    if (minutes > 0) return `${minutes}:${seconds.toString().padStart(2, "0")}`;
     return `${seconds}s`;
   };
+  const playedLabel = useMemo(
+    () => formatSeconds(playedSeconds),
+    [playedSeconds]
+  );
 
   return (
     <div className="game-over-overlay">
@@ -77,7 +77,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
           <div className="stat-item">
             <span className="stat-label">{t("timePlayed")}</span>
-            <span className="stat-value">{formatGameTime(startTime)}</span>
+            <span className="stat-value">{playedLabel}</span>
           </div>
         </div>
 

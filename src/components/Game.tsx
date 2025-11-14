@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameState } from "../hooks/useGameState";
 import GameBoard from "./GameBoard";
@@ -38,6 +38,28 @@ const Game: React.FC = () => {
     () => state.difficulty === "insane",
     [state.difficulty]
   );
+
+  // Auto-pause when tab loses focus (user switches tab, minimizes browser)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Tab hidden: auto-pause if game is active (not already paused or game over)
+        if (!state.paused && !state.gameOver) {
+          pause();
+        }
+      } else {
+        // Tab visible: auto-resume if game was paused (and not game over)
+        if (state.paused && !state.gameOver) {
+          resume();
+        }
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [state.paused, state.gameOver, pause, resume]);
 
   return (
     <div className="game-container">
