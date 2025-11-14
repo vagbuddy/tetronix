@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameState } from "../hooks/useGameState";
 import GameBoard from "./GameBoard";
@@ -14,6 +14,11 @@ import type { Difficulty } from "../types/GameTypes";
 
 const Game: React.FC = () => {
   const { t } = useTranslation();
+  const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+  const [showDifficultyConfirm, setShowDifficultyConfirm] = useState(false);
+  const [pendingDifficulty, setPendingDifficulty] = useState<Difficulty | null>(
+    null
+  );
   const {
     state,
     selectPiece,
@@ -28,6 +33,7 @@ const Game: React.FC = () => {
     restart,
     continueGame,
     setDifficulty,
+    elapsedSeconds,
   } = useGameState();
 
   const rotationEnabled = useMemo(
@@ -61,6 +67,48 @@ const Game: React.FC = () => {
     };
   }, [state.paused, state.gameOver, pause, resume]);
 
+  const handleRestartClick = () => {
+    const hasPlacedPieces = state.availablePieces.some((p) => p.isPlaced);
+    if (!state.gameOver && hasPlacedPieces) {
+      setShowRestartConfirm(true);
+    } else {
+      restart();
+    }
+  };
+
+  const handleDifficultyClick = (newDifficulty: Difficulty) => {
+    const hasPlacedPieces = state.availablePieces.some((p) => p.isPlaced);
+    if (newDifficulty === state.difficulty) {
+      // Clicking same difficulty: restart with confirmation if game is active
+      if (!state.gameOver && hasPlacedPieces) {
+        setShowRestartConfirm(true);
+      } else {
+        restart();
+      }
+    } else {
+      // Changing difficulty: show confirmation if game is active
+      if (!state.gameOver && hasPlacedPieces) {
+        setPendingDifficulty(newDifficulty);
+        setShowDifficultyConfirm(true);
+      } else {
+        setDifficulty(newDifficulty);
+      }
+    }
+  };
+
+  const confirmRestart = () => {
+    setShowRestartConfirm(false);
+    restart();
+  };
+
+  const confirmDifficultyChange = () => {
+    if (pendingDifficulty) {
+      setShowDifficultyConfirm(false);
+      setDifficulty(pendingDifficulty);
+      setPendingDifficulty(null);
+    }
+  };
+
   return (
     <div className="game-container">
       <div
@@ -73,7 +121,7 @@ const Game: React.FC = () => {
       >
         <DifficultySelector
           difficulty={state.difficulty}
-          onDifficultyChange={setDifficulty}
+          onDifficultyChange={handleDifficultyClick}
         />
         <LanguageSelector />
       </div>
@@ -110,9 +158,10 @@ const Game: React.FC = () => {
               clearsCount={state.clearsCount}
               gameOver={state.gameOver}
               paused={state.paused}
+              elapsedSeconds={elapsedSeconds}
               onPause={pause}
               onResume={resume}
-              onRestart={restart}
+              onRestart={handleRestartClick}
               rotationEnabled={rotationEnabled}
             />
           </div>
@@ -134,11 +183,57 @@ const Game: React.FC = () => {
       {state.gameOver && (
         <GameOverModal
           score={state.score}
-          startTime={state.startTime}
+          elapsedSeconds={elapsedSeconds}
           difficulty={state.difficulty as Difficulty}
           onRestart={restart}
           onContinue={continueGame}
         />
+      )}
+
+      {showRestartConfirm && (
+        <div className="game-over-overlay">
+          <div className="game-over-modal">
+            <h2>{t("restartConfirm.title")}</h2>
+            <p>{t("restartConfirm.message")}</p>
+            <div className="game-over-buttons">
+              <button className="continue-button" onClick={confirmRestart}>
+                {t("restartConfirm.confirm")}
+              </button>
+              <button
+                className="restart-button"
+                onClick={() => setShowRestartConfirm(false)}
+              >
+                {t("restartConfirm.cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showDifficultyConfirm && (
+        <div className="game-over-overlay">
+          <div className="game-over-modal">
+            <h2>{t("difficultyConfirm.title")}</h2>
+            <p>{t("difficultyConfirm.message")}</p>
+            <div className="game-over-buttons">
+              <button
+                className="continue-button"
+                onClick={confirmDifficultyChange}
+              >
+                {t("difficultyConfirm.confirm")}
+              </button>
+              <button
+                className="restart-button"
+                onClick={() => {
+                  setShowDifficultyConfirm(false);
+                  setPendingDifficulty(null);
+                }}
+              >
+                {t("difficultyConfirm.cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

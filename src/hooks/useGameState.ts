@@ -1,4 +1,4 @@
-import { useReducer, useCallback, useEffect } from "react";
+import { useReducer, useCallback, useEffect, useMemo } from "react";
 import {
   GameState,
   GameAction,
@@ -45,6 +45,8 @@ const initialState: GameState = {
   gameOver: false,
   paused: false,
   startTime: Date.now(),
+  totalElapsed: 0,
+  lastStartTime: Date.now(),
   clearingCells: [],
   difficulty: getSavedDifficulty(),
 };
@@ -267,11 +269,24 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
       };
     }
 
-    case "PAUSE":
-      return { ...state, paused: true };
+    case "PAUSE": {
+      // Add elapsed time since lastStartTime to totalElapsed
+      let elapsed = state.totalElapsed;
+      if (state.lastStartTime) {
+        elapsed += Math.floor((Date.now() - state.lastStartTime) / 1000);
+      }
+      return {
+        ...state,
+        paused: true,
+        totalElapsed: elapsed,
+        lastStartTime: null,
+      };
+    }
 
-    case "RESUME":
-      return { ...state, paused: false };
+    case "RESUME": {
+      // Set lastStartTime to now
+      return { ...state, paused: false, lastStartTime: Date.now() };
+    }
 
     case "RESTART":
       return {
@@ -279,6 +294,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         difficulty: state.difficulty,
         availablePieces: generateRandomPieces(state.difficulty),
         startTime: Date.now(),
+        totalElapsed: 0,
+        lastStartTime: Date.now(),
       };
 
     case "CONTINUE_GAME":
@@ -298,6 +315,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         difficulty: newDifficulty,
         availablePieces: generateRandomPieces(newDifficulty),
         startTime: Date.now(),
+        totalElapsed: 0,
+        lastStartTime: Date.now(),
       };
     }
 
@@ -371,6 +390,16 @@ export const useGameState = () => {
     }
   }, [state.clearingCells.length]);
 
+  // Calculate elapsed seconds for display
+  const elapsedSeconds = useMemo(() => {
+    if (state.gameOver || state.paused || !state.lastStartTime) {
+      return state.totalElapsed;
+    }
+    return (
+      state.totalElapsed + Math.floor((Date.now() - state.lastStartTime) / 1000)
+    );
+  }, [state.totalElapsed, state.lastStartTime, state.paused, state.gameOver]);
+
   return {
     state,
     selectPiece,
@@ -385,5 +414,6 @@ export const useGameState = () => {
     restart,
     continueGame,
     setDifficulty,
+    elapsedSeconds,
   };
 };

@@ -10,7 +10,7 @@ import type { Difficulty } from "../types/GameTypes";
 
 interface GameOverModalProps {
   score: number;
-  startTime: number;
+  elapsedSeconds: number;
   difficulty?: Difficulty;
   onRestart: () => void;
   onContinue: () => void;
@@ -18,7 +18,7 @@ interface GameOverModalProps {
 
 const GameOverModal: React.FC<GameOverModalProps> = ({
   score,
-  startTime,
+  elapsedSeconds,
   difficulty,
   onRestart,
   onContinue,
@@ -29,10 +29,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   const [submitted, setSubmitted] = useState(false);
 
   // Freeze played time at the moment the modal mounts (game over)
-  const playedSeconds = useMemo(() => {
-    return Math.floor((Date.now() - startTime) / 1000);
-    // startTime is stable for a game session; we compute once on mount
-  }, [startTime]);
+  const [frozenSeconds] = useState(elapsedSeconds);
 
   const onSubmitScore = async () => {
     if (!name.trim()) return;
@@ -43,7 +40,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
         name: name.trim(),
         score,
         difficulty: (difficulty ?? "casual") as Difficulty,
-        playedSeconds,
+        playedSeconds: frozenSeconds,
       });
       setSubmitted(true);
     } catch (e) {
@@ -60,8 +57,8 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
     return `${seconds}s`;
   };
   const playedLabel = useMemo(
-    () => formatSeconds(playedSeconds),
-    [playedSeconds]
+    () => formatSeconds(frozenSeconds),
+    [frozenSeconds]
   );
 
   return (

@@ -24,6 +24,8 @@ export interface GameState {
   gameOver: boolean;
   paused: boolean;
   startTime: number;
+  totalElapsed: number; // seconds
+  lastStartTime: number | null; // ms timestamp or null if paused
   clearingCells: ClearedCell[]; // transient overlay for clear animation
   difficulty: Difficulty;
 }

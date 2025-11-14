@@ -11,6 +11,18 @@
   "pause": "Pause",
   "resume": "Resume",
   "restart": "Restart",
+  "restartConfirm": {
+    "title": "Restart Game?",
+    "message": "Your current progress will be lost.",
+    "confirm": "Restart",
+    "cancel": "Cancel"
+  },
+  "difficultyConfirm": {
+    "title": "Change Difficulty?",
+    "message": "Your current game will be restarted.",
+    "confirm": "Change",
+    "cancel": "Cancel"
+  },
   "gameOver": "Game Over!",
   "noMoreMoves": "No more moves available",
   "finalScore": "Final Score",

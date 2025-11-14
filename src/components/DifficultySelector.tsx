@@ -34,13 +34,15 @@ const DifficultySelector: React.FC<DifficultySelectorProps> = ({
               difficulty === diff.value ? "selected" : ""
             }`}
             data-difficulty={diff.value}
+            onClick={() => onDifficultyChange(diff.value)}
+            style={{ cursor: "pointer" }}
           >
             <input
               type="radio"
               name="difficulty"
               value={diff.value}
               checked={difficulty === diff.value}
-              onChange={(e) => onDifficultyChange(e.target.value as Difficulty)}
+              readOnly
             />
             <span className="difficulty-content">
               <span className="difficulty-text">{diff.label}</span>

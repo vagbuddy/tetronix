@@ -11,6 +11,18 @@
   "pause": "Paus",
   "resume": "Jätka",
   "restart": "Taaskäivita",
+  "restartConfirm": {
+    "title": "Kas alustada uuesti?",
+    "message": "Teie praegune progress läheb kaotsi.",
+    "confirm": "Alusta uuesti",
+    "cancel": "Tühista"
+  },
+  "difficultyConfirm": {
+    "title": "Kas muuta raskusastet?",
+    "message": "Teie praegune mäng alustatakse uuesti.",
+    "confirm": "Muuda",
+    "cancel": "Tühista"
+  },
   "gameOver": "Mäng läbi!",
   "noMoreMoves": "Enam käike pole",
   "finalScore": "Lõplik skoor",
