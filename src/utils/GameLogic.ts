@@ -664,10 +664,10 @@ export const canPlaceAnyPiece = (
       variants.push({ ...base, shape, rotation, isMirrored });
     };
 
-    // When mirror is allowed, we need to check all rotations of both normal AND mirrored versions
-    // because flipping changes the piece fundamentally, and each orientation of the flipped piece
-    // is different from the original
-    const rotationCount = allowRotate ? allowed : allowMirror ? allowed : 1;
+    // In insane mode (allowRotate=false, allowMirror=true), pieces are pre-rotated
+    // at generation but players can only use that orientation + flip it.
+    // We should only check the piece's CURRENT shape, not all possible rotations.
+    const rotationCount = allowRotate ? allowed : 1;
 
     for (let rot = 0; rot < rotationCount; rot++) {
       // performRotate with rot=0 returns the piece's current shape without modification
