@@ -6,11 +6,15 @@ import type { Difficulty } from "../types/GameTypes";
 interface DifficultySelectorProps {
   difficulty: Difficulty;
   onDifficultyChange: (difficulty: Difficulty) => void;
+  leftSlot?: React.ReactNode;
+  rightSlot?: React.ReactNode;
 }
 
 const DifficultySelector: React.FC<DifficultySelectorProps> = ({
   difficulty,
   onDifficultyChange,
+  leftSlot,
+  rightSlot,
 }) => {
   const { t } = useTranslation();
 
@@ -25,7 +29,10 @@ const DifficultySelector: React.FC<DifficultySelectorProps> = ({
   ];
 
   return (
-    <div className="difficulty-selector">
+    <div className="difficulty-selector difficulty-selector--with-slots">
+      {leftSlot && (
+        <div className="difficulty-slot difficulty-slot-left">{leftSlot}</div>
+      )}
       <div className="difficulty-options">
         {difficulties.map((diff) => (
           <label
@@ -50,6 +57,9 @@ const DifficultySelector: React.FC<DifficultySelectorProps> = ({
           </label>
         ))}
       </div>
+      {rightSlot && (
+        <div className="difficulty-slot difficulty-slot-right">{rightSlot}</div>
+      )}
     </div>
   );
 };

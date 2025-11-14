@@ -8,6 +8,24 @@
   position: relative;
 }
 
+.top-bar {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto 10px auto;
+}
+
+.top-left, .top-center, .top-right {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+
+.top-left { justify-content: flex-start; }
+.top-center { justify-content: center; }
+.top-right { justify-content: flex-end; }
+
 .game-header {
   text-align: center;
   margin-bottom: 30px;

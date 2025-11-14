@@ -8,6 +8,7 @@ import ScoreCorner from "./ScoreCorner";
 import GameOverModal from "./GameOverModal";
 import DifficultySelector from "./DifficultySelector";
 import LanguageSelector from "./LanguageSelector";
+import SettingsButton from "./SettingsButton";
 import "./Game.css";
 import { isMobile } from "../utils/DeviceDetection";
 import type { Difficulty } from "../types/GameTypes";
@@ -15,6 +16,7 @@ import type { Difficulty } from "../types/GameTypes";
 const Game: React.FC = () => {
   const { t } = useTranslation();
   const [showRestartConfirm, setShowRestartConfirm] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [showDifficultyConfirm, setShowDifficultyConfirm] = useState(false);
   const [pendingDifficulty, setPendingDifficulty] = useState<Difficulty | null>(
     null
@@ -111,20 +113,12 @@ const Game: React.FC = () => {
 
   return (
     <div className="game-container">
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          width: "100%",
-        }}
-      >
-        <DifficultySelector
-          difficulty={state.difficulty}
-          onDifficultyChange={handleDifficultyClick}
-        />
-        <LanguageSelector />
-      </div>
+      <DifficultySelector
+        difficulty={state.difficulty}
+        onDifficultyChange={handleDifficultyClick}
+        leftSlot={<LanguageSelector />}
+        rightSlot={<SettingsButton onClick={() => setShowSettings(true)} />}
+      />
 
       <div className="game-content">
         <div className="game-main">
@@ -188,6 +182,23 @@ const Game: React.FC = () => {
           onRestart={restart}
           onContinue={continueGame}
         />
+      )}
+
+      {showSettings && (
+        <div className="game-over-overlay">
+          <div className="game-over-modal">
+            <h2>Settings</h2>
+            <p>Settings placeholder. Coming soon.</p>
+            <div className="game-over-buttons">
+              <button
+                className="continue-button"
+                onClick={() => setShowSettings(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showRestartConfirm && (
