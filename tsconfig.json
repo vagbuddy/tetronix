@@ -12,7 +12,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "types": ["vite/client"] // Added this line to include Vite types
   },
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]

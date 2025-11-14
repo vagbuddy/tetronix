@@ -3,6 +3,7 @@ services:
     name: Tetronix
     env: node
     plan: free
-    branch: main
+    branch: master
+    nodeVersion: 20
     buildCommand: npm install && npm run build
     startCommand: serve -s build
