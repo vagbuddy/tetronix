@@ -70,7 +70,7 @@ export const TETRIS_PIECES: Omit<
       [1, 1, 1],
       [0, 0, 0],
     ],
-    color: "#0000f0",
+    color: "#3b82f6",
   },
   {
     id: "L",

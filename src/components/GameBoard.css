@@ -9,12 +9,72 @@
   /* Backdrop filter: vendor-prefixed fallback and feature-detect to avoid parser/runtime issues */
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 0px solid rgba(255, 255, 255, 0.3);
+  animation: rgbBorderGlow 9s linear infinite;
   /* cross-browser user-select fallbacks */
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
   user-select: none;
+}
+
+@keyframes rgbBorderGlow {
+  0% {
+    box-shadow: 
+      0 0 10px rgba(255, 0, 0, 0.8),
+      0 0 20px rgba(255, 0, 0, 0.6),
+      0 0 30px rgba(255, 0, 0, 0.4),
+      0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+  14.28% {
+    box-shadow: 
+      0 0 10px rgba(255, 127, 0, 0.8),
+      0 0 20px rgba(255, 127, 0, 0.6),
+      0 0 30px rgba(255, 127, 0, 0.4),
+      0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+  28.56% {
+    box-shadow: 
+      0 0 10px rgba(255, 255, 0, 0.8),
+      0 0 20px rgba(255, 255, 0, 0.6),
+      0 0 30px rgba(255, 255, 0, 0.4),
+      0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+  42.84% {
+    box-shadow: 
+      0 0 10px rgba(0, 255, 0, 0.8),
+      0 0 20px rgba(0, 255, 0, 0.6),
+      0 0 30px rgba(0, 255, 0, 0.4),
+      0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+  57.12% {
+    box-shadow: 
+      0 0 10px rgba(0, 0, 255, 0.8),
+      0 0 20px rgba(0, 0, 255, 0.6),
+      0 0 30px rgba(0, 0, 255, 0.4),
+      0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+  71.4% {
+    box-shadow: 
+      0 0 10px rgba(75, 0, 130, 0.8),
+      0 0 20px rgba(75, 0, 130, 0.6),
+      0 0 30px rgba(75, 0, 130, 0.4),
+      0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+  85.68% {
+    box-shadow: 
+      0 0 10px rgba(148, 0, 211, 0.8),
+      0 0 20px rgba(148, 0, 211, 0.6),
+      0 0 30px rgba(148, 0, 211, 0.4),
+      0 8px 32px rgba(0, 0, 0, 0.3);
+  }
+  100% {
+    box-shadow: 
+      0 0 10px rgba(255, 0, 0, 0.8),
+      0 0 20px rgba(255, 0, 0, 0.6),
+      0 0 30px rgba(255, 0, 0, 0.4),
+      0 8px 32px rgba(0, 0, 0, 0.3);
+  }
 }
 
 .game-board {
