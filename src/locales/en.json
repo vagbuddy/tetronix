@@ -62,4 +62,11 @@
   },
   "language": "Language",
   "availablePieces": "Available Pieces"
+  ,
+  "loadPrompt": {
+    "title": "Continue previous game?",
+    "message": "Would you like to continue your saved game or start a new one?",
+    "continue": "Continue",
+    "startNew": "Start New"
+  }
 }

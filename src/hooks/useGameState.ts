@@ -1,4 +1,11 @@
-import { useReducer, useCallback, useEffect, useMemo, useState } from "react";
+import {
+  useReducer,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import {
   GameState,
   GameAction,
@@ -24,6 +31,50 @@ import {
 } from "../utils/GameLogic";
 
 const DIFFICULTY_KEY = "tetronix:difficulty";
+const SAVE_KEY = "tetronix:game_v1";
+
+const isValidDifficulty = (v: any): v is Difficulty =>
+  v === "casual" || v === "master" || v === "expert" || v === "insane";
+
+const loadSavedState = (): GameState | undefined => {
+  try {
+    if (typeof window === "undefined") return undefined;
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    const s = parsed?.state;
+    if (!s) return undefined;
+
+    // Basic validation
+    if (!Array.isArray(s.grid) || !Array.isArray(s.availablePieces))
+      return undefined;
+    if (typeof s.score !== "number" || typeof s.clearsCount !== "number")
+      return undefined;
+    if (!isValidDifficulty(s.difficulty)) return undefined;
+
+    // Rehydrate and normalize: avoid restoring transient fields like clearingCells
+    const restored: GameState = {
+      grid: s.grid,
+      availablePieces: s.availablePieces,
+      selectedPiece: s.selectedPiece || null,
+      score: s.score || 0,
+      clearsCount: s.clearsCount || 0,
+      gameOver: !!s.gameOver,
+      // When loading from storage, keep the game paused until user confirms
+      paused: true,
+      startTime: typeof s.startTime === "number" ? s.startTime : Date.now(),
+      totalElapsed: typeof s.totalElapsed === "number" ? s.totalElapsed : 0,
+      // Do not restore absolute lastStartTime; require user to resume
+      lastStartTime: null,
+      clearingCells: [],
+      difficulty: s.difficulty,
+    };
+
+    return restored;
+  } catch (e) {
+    return undefined;
+  }
+};
 
 const getSavedDifficulty = (): Difficulty => {
   try {
@@ -330,7 +381,14 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 };
 
 export const useGameState = () => {
-  const [state, dispatch] = useReducer(gameReducer, initialState);
+  // Try to load saved state (synchronously) so we can show a continue prompt
+  const saved = typeof window !== "undefined" ? loadSavedState() : undefined;
+  const initialLoadedFromStorage = !!saved;
+  const initialLoadedRef = useRef(initialLoadedFromStorage);
+  const [hasSaved, setHasSaved] = useState<boolean>(initialLoadedFromStorage);
+
+  const [state, dispatch] = useReducer(gameReducer, saved || initialState);
+  const skipSaveRef = useRef(false);
 
   const selectPiece = useCallback((piece: TetrisPiece) => {
     dispatch({ type: "SELECT_PIECE", piece });
@@ -375,6 +433,19 @@ export const useGameState = () => {
     dispatch({ type: "RESTART" });
   }, []);
 
+  const discardSavedAndRestart = useCallback(() => {
+    // Prevent the next automatic persist from re-creating the saved game
+    skipSaveRef.current = true;
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(SAVE_KEY);
+      }
+    } catch {}
+    setHasSaved(false);
+    // restart will reset to initialState but keep difficulty
+    dispatch({ type: "RESTART" });
+  }, []);
+
   const continueGame = useCallback(() => {
     dispatch({ type: "CONTINUE_GAME" });
   }, []);
@@ -390,6 +461,36 @@ export const useGameState = () => {
       return () => clearTimeout(tid);
     }
   }, [state.clearingCells.length]);
+
+  // Persist game state to localStorage on changes. We avoid saving transient
+  // fields like `clearingCells` and `lastStartTime` (stored as absolute timestamp).
+  useEffect(() => {
+    try {
+      if (typeof window === "undefined") return;
+      // If we're skipping one persistence (e.g. user just discarded saved state),
+      // consume the flag and avoid writing to storage this cycle.
+      if (skipSaveRef.current) {
+        skipSaveRef.current = false;
+        return;
+      }
+      const toSave = {
+        version: 1,
+        savedAt: Date.now(),
+        state: {
+          ...state,
+          // don't persist transient animation overlay
+          clearingCells: [],
+          // persist totalElapsed instead of absolute lastStartTime
+          lastStartTime: null,
+        },
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(toSave));
+      // mark that a saved game exists
+      setHasSaved(true);
+    } catch (e) {
+      // ignore storage errors
+    }
+  }, [state]);
 
   // Tick every second while the game is active so components that compute
   // elapsed time from Date.now() re-evaluate (elapsedSeconds uses Date.now()).
@@ -432,5 +533,10 @@ export const useGameState = () => {
     continueGame,
     setDifficulty,
     elapsedSeconds,
+    // persistence helpers
+    hasSaved,
+    discardSavedAndRestart,
+    // whether a saved state was present at initialization (useful to avoid UI flicker)
+    loadedFromStorage: initialLoadedRef.current,
   };
 };

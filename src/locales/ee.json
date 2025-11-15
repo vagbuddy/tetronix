@@ -62,4 +62,11 @@
   },
   "language": "Keel",
   "availablePieces": "Saadaolevad tükid"
+  ,
+  "loadPrompt": {
+    "title": "Jätkata eelmist mängu?",
+    "message": "Kas soovite jätkata salvestatud mängu või alustada uut?",
+    "continue": "Jätka",
+    "startNew": "Alusta uut"
+  }
 }

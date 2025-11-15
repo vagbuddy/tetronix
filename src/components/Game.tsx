@@ -36,7 +36,37 @@ const Game: React.FC = () => {
     continueGame,
     setDifficulty,
     elapsedSeconds,
+    hasSaved,
+    discardSavedAndRestart,
+    loadedFromStorage,
   } = useGameState();
+
+  // Initialize the prompt visibility from whether a saved game was loaded
+  // at startup to avoid rendering the pause modal briefly on first paint.
+  const [showLoadPrompt, setShowLoadPrompt] = useState<boolean>(
+    !!loadedFromStorage
+  );
+  // Show the load prompt only if a saved game was present at initial load.
+  // This avoids re-prompting on subsequent autosaves.
+  useEffect(() => {
+    if (!loadedFromStorage) return;
+
+    // If the saved board is empty (no filled cells and no placed pieces),
+    // there's nothing to continue — discard saved game and start fresh.
+    const boardHasAnyFilled = state.grid.some((row) =>
+      row.some((cell: any) => cell && cell.filled)
+    );
+    const anyPlacedPieces = state.availablePieces.some((p) => p.isPlaced);
+    if (!boardHasAnyFilled && !anyPlacedPieces) {
+      discardSavedAndRestart();
+      setShowLoadPrompt(false);
+      return;
+    }
+
+    setShowLoadPrompt(true);
+    // run only on initial mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const rotationEnabled = useMemo(
     () => state.difficulty === "casual" || state.difficulty === "expert",
@@ -161,7 +191,7 @@ const Game: React.FC = () => {
         )}
       </div>
 
-      {state.paused && (
+      {state.paused && !showLoadPrompt && (
         <div className="pause-overlay">
           <div className="pause-content">
             <h2>{t("pause")}</h2>
@@ -242,6 +272,39 @@ const Game: React.FC = () => {
                 }}
               >
                 {t("difficultyConfirm.cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLoadPrompt && (
+        <div className="game-over-overlay">
+          <div className="game-over-modal">
+            <h2>{t("loadPrompt.title")}</h2>
+            <p>{t("loadPrompt.message")}</p>
+            <div className="game-over-buttons">
+              <button
+                className="continue-button"
+                onClick={() => {
+                  // Continue uses the loaded state; unhide prompt and resume if paused
+                  setShowLoadPrompt(false);
+                  if (state.paused && !state.gameOver) {
+                    resume();
+                  }
+                }}
+              >
+                {t("loadPrompt.continue")}
+              </button>
+              <button
+                className="restart-button"
+                onClick={() => {
+                  // Discard saved game and start fresh
+                  discardSavedAndRestart();
+                  setShowLoadPrompt(false);
+                }}
+              >
+                {t("loadPrompt.startNew")}
               </button>
             </div>
           </div>
