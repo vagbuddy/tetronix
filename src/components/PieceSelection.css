@@ -9,6 +9,9 @@
   margin-top: 20px;
 }
 
+/* Ensure piece-selection doesn't force layout wider than viewport */
+.piece-selection { box-sizing: border-box; width: 100%; max-width: 100%; }
+
 .piece-selection-header {
   display: flex;
   justify-content: space-between;
@@ -22,8 +25,16 @@
   margin: 0;
   font-family: 'Orbitron', monospace;
   color: #3498db;
-  font-size: 1.3rem;
+  /* Allow the header to shrink on small screens; prefer reducing font-size
+     rather than wrapping. Use clamp() to scale between a small and large size. */
+  font-size: clamp(0.9rem, 2.6vw, 1.3rem);
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+  /* Flex rules so the title can shrink while the score widget keeps its size */
+  flex: 1 1 auto;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .score-display {
@@ -34,6 +45,7 @@
   padding: 6px 14px;
   border-radius: 8px;
   font-family: 'Orbitron', monospace;
+  flex: 0 0 auto;
 }
 
 .score-label {
@@ -220,5 +232,28 @@
   .piece-preview {
     width: 80px;
     height: 80px;
+  }
+}
+
+/* Extra small screens (iPhone SE / 375px) */
+@media (max-width: 375px) {
+  .piece-selection {
+    padding: 8px;
+    margin-top: 12px;
+  }
+  .pieces-container {
+    gap: 8px;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .piece-container {
+    width: 100px;
+    min-width: 100px;
+    padding: 8px;
+  }
+  .piece-preview {
+    width: 60px;
+    height: 60px;
   }
 }

@@ -101,10 +101,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
     let shapeY: number;
     if (anchor) {
       // Align the selected cell (anchor) of the shape with the grid cell under the pointer
-      // Since the pointer is positioned over the center of a cell in the drag preview,
-      // use floor to map to the correct grid index rather than rounding to the next cell.
-      const occX = Math.floor(fx);
-      const occY = Math.floor(fy);
+      // We round to the nearest grid cell so pointer locations that target the
+      // center of a preview cell map consistently to the same grid cell on the board.
+      const occX = Math.floor(fx + 0.5);
+      const occY = Math.floor(fy + 0.5);
       shapeX = occX - anchor.col;
       shapeY = occY - anchor.row;
     } else {
@@ -129,11 +129,18 @@ const GameBoard: React.FC<GameBoardProps> = ({
     const updateCellSize = () => {
       const containerWidth =
         boardRef.current?.parentElement?.clientWidth || window.innerWidth;
+      // On very small screens we need to reduce the visual padding so the
+      // board (GRID_WIDTH * cellSize) plus container padding fits inside
+      // narrow viewports (e.g. iPhone SE 375px). By subtracting the
+      // effective horizontal padding we ensure the computed cell size
+      // matches the actual available space.
+      const totalPadding = containerWidth <= 375 ? 16 : 40; // px (left+right)
+      const effectiveAvailable = Math.max(80, containerWidth - totalPadding);
       const maxBoardWidth = Math.min(
         GRID_WIDTH * CELL_SIZE,
-        containerWidth - 40
+        effectiveAvailable
       );
-      const calculated = Math.max(20, Math.floor(maxBoardWidth / GRID_WIDTH));
+      const calculated = Math.max(14, Math.floor(maxBoardWidth / GRID_WIDTH));
       setCellSize(calculated);
     };
 

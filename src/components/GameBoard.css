@@ -18,6 +18,15 @@
   user-select: none;
 }
 
+/* Tighten up padding on very small screens so board fits (e.g. 375px) */
+@media (max-width: 375px) {
+  .game-board-container {
+    padding: 8px;
+    border-radius: 10px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+  }
+}
+
 @keyframes rgbBorderGlow {
   0% {
     box-shadow: 

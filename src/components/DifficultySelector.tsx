@@ -33,6 +33,7 @@ const DifficultySelector: React.FC<DifficultySelectorProps> = ({
       {leftSlot && (
         <div className="difficulty-slot difficulty-slot-left">{leftSlot}</div>
       )}
+
       <div className="difficulty-options">
         {difficulties.map((diff) => (
           <label
@@ -57,6 +58,7 @@ const DifficultySelector: React.FC<DifficultySelectorProps> = ({
           </label>
         ))}
       </div>
+
       {rightSlot && (
         <div className="difficulty-slot difficulty-slot-right">{rightSlot}</div>
       )}

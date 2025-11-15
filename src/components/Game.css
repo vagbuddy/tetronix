@@ -63,6 +63,37 @@
   margin: 0 auto;
 }
 
+@media (max-width: 420px) {
+  .game-container {
+    padding: 8px;
+  }
+  .game-content {
+    gap: 12px;
+    padding: 0 6px;
+  }
+  .game-sidebar {
+    min-width: 0;
+    display: none;
+  }
+}
+
+@media (max-width: 375px) {
+  .game-content {
+    max-width: 100%;
+    padding: 0 6px;
+    gap: 8px;
+  }
+  .game-main {
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    box-sizing: border-box;
+  }
+  .game-container {
+    padding: 6px;
+  }
+}
+
 .game-main {
   display: flex;
   flex-direction: column;

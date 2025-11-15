@@ -1,4 +1,4 @@
-import { useReducer, useCallback, useEffect, useMemo } from "react";
+import { useReducer, useCallback, useEffect, useMemo, useState } from "react";
 import {
   GameState,
   GameAction,
@@ -300,7 +300,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
 
     case "CONTINUE_GAME":
       // Allow user to dismiss game over screen and continue playing
-      return { ...state, gameOver: false };
+      // Ensure the timer restarts by setting lastStartTime to now
+      return { ...state, gameOver: false, lastStartTime: Date.now() };
 
     case "SET_DIFFICULTY": {
       // Changing difficulty restarts the game with new pool/rules
@@ -390,6 +391,16 @@ export const useGameState = () => {
     }
   }, [state.clearingCells.length]);
 
+  // Tick every second while the game is active so components that compute
+  // elapsed time from Date.now() re-evaluate (elapsedSeconds uses Date.now()).
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    if (state.paused || state.gameOver || !state.lastStartTime)
+      return undefined;
+    const id = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(id);
+  }, [state.paused, state.gameOver, state.lastStartTime]);
+
   // Calculate elapsed seconds for display
   const elapsedSeconds = useMemo(() => {
     if (state.gameOver || state.paused || !state.lastStartTime) {
@@ -398,7 +409,13 @@ export const useGameState = () => {
     return (
       state.totalElapsed + Math.floor((Date.now() - state.lastStartTime) / 1000)
     );
-  }, [state.totalElapsed, state.lastStartTime, state.paused, state.gameOver]);
+  }, [
+    state.totalElapsed,
+    state.lastStartTime,
+    state.paused,
+    state.gameOver,
+    tick,
+  ]);
 
   return {
     state,

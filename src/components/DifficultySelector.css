@@ -1,3 +1,24 @@
+@media (max-width: 375px) {
+  .difficulty-selector {
+    padding: 2px;
+    margin-bottom: 6px;
+  }
+  .difficulty-options {
+    gap: 1px;
+  }
+  .difficulty-content {
+    padding: 2px 1px;
+    min-width: 20px;
+  }
+  .difficulty-text {
+    font-size: 0.65rem;
+    letter-spacing: 0.2px;
+  }
+  .difficulty-slot-left,
+  .difficulty-slot-right {
+    margin: 0;
+  }
+}
 .difficulty-selector {
   display: flex;
   align-items: center;
@@ -16,7 +37,11 @@
 }
 
 .difficulty-selector--with-slots {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
   justify-content: space-between;
+  gap: 12px;
 }
 
 .difficulty-slot {
@@ -25,16 +50,19 @@
   gap: 10px;
 }
 
-.difficulty-slot-left, .difficulty-slot-right {
+.difficulty-slot-left {
+  flex: 0 0 auto;
+}
+.difficulty-slot-right {
   flex: 0 0 auto;
 }
 
 .difficulty-options {
-  flex: 1 1 auto;
-  min-width: 0; /* allow center to shrink instead of pushing slots */
+  flex: 1 1 0%;
+  min-width: 0;
   display: flex;
-  gap: 10px;
-  flex-wrap: wrap; /* wrap options within available center space */
+  gap: 6px;
+  flex-wrap: nowrap;
   justify-content: center;
   width: auto;
 }
@@ -65,13 +93,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 10px 16px;
+  gap: 2px;
+  padding: 7px 8px;
   background: rgba(255, 255, 255, 0.15);
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 10px;
   transition: all 0.3s ease;
-  min-width: 76px;
+  min-width: 48px;
+  flex-shrink: 1;
 }
 
 .difficulty-emoji {
@@ -205,26 +234,17 @@
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .difficulty-selector {
-    gap: 8px;
-    padding: 10px;
-    margin-bottom: 15px;
+    gap: 0;
+    padding: 8px;
+    margin-bottom: 12px;
   }
-
   .difficulty-options {
-    gap: 8px;
-    flex-wrap: wrap; /* allow wrapping under slots on small screens */
-    justify-content: center;
-    width: auto;
+    gap: 4px;
   }
-
-  .difficulty-option { flex: 0 0 auto; }
-
   .difficulty-content {
-    padding: 10px 8px;
-    min-width: auto;
-    width: 100%;
+    padding: 6px 4px;
+    min-width: 36px;
   }
-
   .difficulty-text {
     font-size: 0.8rem;
   }
@@ -232,18 +252,20 @@
 
 @media (max-width: 480px) {
   .difficulty-selector {
-    padding: 8px;
-    gap: 6px;
+    padding: 4px;
+    margin-bottom: 8px;
   }
-
+  .difficulty-slot-left,
+  .difficulty-slot-right {
+    margin: 0;
+  }
   .difficulty-options {
-    gap: 6px;
+    gap: 2px;
   }
-
   .difficulty-content {
-    padding: 8px 4px;
+    padding: 4px 2px;
+    min-width: 28px;
   }
-
   .difficulty-text {
     font-size: 0.7rem;
   }

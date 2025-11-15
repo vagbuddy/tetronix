@@ -1,6 +1,6 @@
 import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSliders } from "@fortawesome/free-solid-svg-icons"; // Font Awesome sliders glyph
+import { faEllipsisVertical } from "@fortawesome/free-solid-svg-icons";
 import "./SettingsButton.css";
 
 type Props = {
@@ -21,10 +21,10 @@ const SettingsButton: React.FC<Props> = ({ onClick }) => {
     <button
       className="settings-button"
       onClick={handleClick}
-      aria-label="Settings"
+      aria-label="More"
       type="button"
     >
-      <FontAwesomeIcon icon={faSliders} />
+      <FontAwesomeIcon icon={faEllipsisVertical} />
     </button>
   );
 };

@@ -116,7 +116,6 @@ const Game: React.FC = () => {
       <DifficultySelector
         difficulty={state.difficulty}
         onDifficultyChange={handleDifficultyClick}
-        leftSlot={<LanguageSelector />}
         rightSlot={<SettingsButton onClick={() => setShowSettings(true)} />}
       />
 
@@ -188,7 +187,9 @@ const Game: React.FC = () => {
         <div className="game-over-overlay">
           <div className="game-over-modal">
             <h2>Settings</h2>
-            <p>Settings placeholder. Coming soon.</p>
+            <div style={{ marginBottom: 12 }}>
+              <LanguageSelector />
+            </div>
             <div className="game-over-buttons">
               <button
                 className="continue-button"
