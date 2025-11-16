@@ -204,7 +204,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         isMirrored: !!pieceToPlace.isMirrored,
         x: action.position.x,
         y: action.position.y,
-        timestamp: Date.now(),
+        timestamp: new Date(),
       };
 
       return {
@@ -216,6 +216,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         clearsCount: state.clearsCount + totalClears,
         clearingCells,
         gameOver: !canContinue,
+        endTime: !canContinue ? Date.now() : state.endTime,
         rng: nextRng,
         moveLog: [...state.moveLog, newMove],
       };

@@ -112,7 +112,9 @@ const Game: React.FC = () => {
       {state.gameOver && (
         <GameOverModal
           score={state.score}
-          startTime={state.startTime}
+          playedSeconds={Math.floor(
+            ((state.endTime || Date.now()) - state.startTime) / 1000
+          )}
           difficulty={state.difficulty as Difficulty}
           seed={state.seed}
           moves={state.moveLog}

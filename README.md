@@ -83,7 +83,13 @@ This project is set up for easy deployment with Firebase Hosting.
 
 Create `.env.local` with:
 
-```
+``` 
+
+## Backend
+
+The backend API service handles seed generation, game validation, submissions, and leaderboard management. It is located in the [`api/`](./api) directory.
+
+For detailed backend API documentation, setup, and development instructions, see [`api/README.md`](./api/README.md).
 VITE_FIREBASE_API_KEY=...
 VITE_FIREBASE_AUTH_DOMAIN=...
 VITE_FIREBASE_PROJECT_ID=...

@@ -21,7 +21,7 @@ export interface Move {
   isMirrored?: boolean;
   x: number;
   y: number;
-  timestamp: number;
+  timestamp: Date; // datetime when move was made
 }
 
 export interface GameState {
@@ -33,6 +33,7 @@ export interface GameState {
   gameOver: boolean;
   paused: boolean;
   startTime: number;
+  endTime?: number; // timestamp when game ended (for fixed timer display)
   clearingCells: ClearedCell[]; // transient overlay for clear animation
   difficulty: Difficulty;
   seed: number; // deterministic seed for PRNG

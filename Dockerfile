@@ -1,5 +1,5 @@
 # Development stage
-FROM node:18-alpine AS development
+FROM node:22-slim AS development
 WORKDIR /app
 COPY package*.json ./
 RUN npm install

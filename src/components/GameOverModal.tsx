@@ -11,7 +11,7 @@ import type { Difficulty, Move } from "../types/GameTypes";
 
 interface GameOverModalProps {
   score: number;
-  startTime: number;
+  playedSeconds: number;
   difficulty?: Difficulty;
   seed: number;
   moves: Move[];
@@ -22,7 +22,7 @@ interface GameOverModalProps {
 
 const GameOverModal: React.FC<GameOverModalProps> = ({
   score,
-  startTime,
+  playedSeconds,
   difficulty,
   seed,
   moves,
@@ -30,16 +30,11 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   onContinue,
   canSubmit,
 }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [name, setName] = useState<string>(getSavedUsername() || "");
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const lastSubmitAt = getLastSubmitAt();
-
-  const playedSeconds = useMemo(
-    () => Math.floor((Date.now() - startTime) / 1000),
-    [startTime]
-  );
 
   const onSubmitScore = async () => {
     if (!name.trim()) return;
@@ -57,6 +52,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
         playedSeconds,
         seed,
         moves,
+        locale: i18n.language,
       });
       if ((res as any)?.ok) {
         saveUsername(trimmed);
@@ -69,16 +65,14 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
     }
   };
 
-  const formatGameTime = (startTime: number): string => {
-    const elapsedMs = Date.now() - startTime;
-    const totalSeconds = Math.floor(elapsedMs / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
+  const formatGameTime = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
 
     if (minutes > 0) {
-      return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+      return `${minutes}:${secs.toString().padStart(2, "0")}`;
     }
-    return `${seconds}s`;
+    return `${secs}s`;
   };
 
   return (
@@ -94,7 +88,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
           </div>
           <div className="stat-item">
             <span className="stat-label">{t("timePlayed")}</span>
-            <span className="stat-value">{formatGameTime(startTime)}</span>
+            <span className="stat-value">{formatGameTime(playedSeconds)}</span>
           </div>
         </div>
 

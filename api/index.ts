@@ -12,6 +12,11 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const DEBUG_LOGS =
+  process.env.DEBUG_LOGS === "1" || process.env.DEBUG_LOGS === "true";
+
+// Lightweight request id generator
+const genReqId = () => Math.random().toString(36).slice(2, 10);
 
 // Initialize Firebase Admin
 let db: admin.firestore.Firestore;
@@ -45,7 +50,27 @@ app.use(
 );
 app.use(cors());
 app.use(express.json());
-app.use(morgan("dev"));
+// Attach a request id early
+app.use((req, _res, next) => {
+  (req as any).requestId =
+    (req.headers["x-request-id"] as string) || genReqId();
+  next();
+});
+
+// Morgan logging with extra context in debug
+morgan.token("id", (req) => ((req as any).requestId as string) || "-");
+morgan.token(
+  "user",
+  (req: any) =>
+    req?.body?.uid ||
+    req?.query?.uid ||
+    (req.get && req.get("x-user-id")) ||
+    "-"
+);
+const devFormat = DEBUG_LOGS
+  ? ':date[iso] id=:id :method :url :status :res[content-length] - :response-time ms user=:user ip=:remote-addr ua=":user-agent"'
+  : "dev";
+app.use(morgan(devFormat));
 
 // Middleware to verify Firebase App Check token
 const appCheckVerification = async (
@@ -53,16 +78,27 @@ const appCheckVerification = async (
   res: Response,
   next: () => void
 ) => {
+  // Always allow CORS preflight requests to pass through
+  if (req.method === "OPTIONS") {
+    return next();
+  }
+
+  // Allow disabling App Check verification in non-production for local dev
+  // Set APP_CHECK_ENFORCE=true in the environment to force verification
+  const enforceAppCheck =
+    process.env.APP_CHECK_ENFORCE === "true" ||
+    process.env.NODE_ENV === "production";
+  if (!enforceAppCheck) {
+    return next();
+  }
+
   const appCheckToken = req.header("X-Firebase-AppCheck");
 
   // If running in a development environment, you might want to bypass this check.
   // IMPORTANT: Ensure this is not active in production.
   /*
-  if (process.env.NODE_ENV !== "production") {
-    console.log("Skipping App Check in development.");
-    return next();
-  }
-  */
+   * Note: Dev bypass is controlled by APP_CHECK_ENFORCE and NODE_ENV above.
+   */
 
   if (!appCheckToken) {
     return res
@@ -121,6 +157,20 @@ app.post("/api/startGame", async (req: Request, res: Response) => {
       used: false,
     });
 
+    if (DEBUG_LOGS) {
+      console.log(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          reqId: (req as any).requestId,
+          route: "startGame",
+          action: "seed_created",
+          uid,
+          seed,
+          docId: `${uid}_${seed}`,
+        })
+      );
+    }
+
     res.json({ seed });
   } catch (error: any) {
     console.error("Error generating seed:", error);
@@ -133,7 +183,7 @@ app.post("/api/startGame", async (req: Request, res: Response) => {
 // Submit game result
 app.post("/api/submitGame", async (req: Request, res: Response) => {
   try {
-    const { uid, seed, score, difficulty, name, playedSeconds, moves } =
+    const { uid, seed, score, difficulty, name, playedSeconds, moves, locale } =
       req.body;
 
     if (!uid || seed === undefined || score === undefined) {
@@ -163,6 +213,24 @@ app.post("/api/submitGame", async (req: Request, res: Response) => {
       });
     }
 
+    if (DEBUG_LOGS) {
+      console.log(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          reqId: (req as any).requestId,
+          route: "submitGame",
+          action: "validating_seed",
+          uid,
+          seed,
+          score,
+          difficulty,
+          name,
+          playedSeconds,
+          movesLength: Array.isArray(moves) ? moves.length : undefined,
+        })
+      );
+    }
+
     // Use Firestore transaction to ensure atomicity
     await db.runTransaction(async (transaction) => {
       // Mark seed as used
@@ -180,10 +248,27 @@ app.post("/api/submitGame", async (req: Request, res: Response) => {
         score,
         playedSeconds: playedSeconds ?? null,
         moves: moves || [],
-        createdAt: Date.now(),
-        locale: req.headers["accept-language"]?.split(",")[0] || null,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        locale: locale || null,
       });
     });
+
+    if (DEBUG_LOGS) {
+      console.log(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          reqId: (req as any).requestId,
+          route: "submitGame",
+          action: "write_committed",
+          uid,
+          seed,
+          seedDocId,
+          score,
+          difficulty,
+          name: (name || "Player").slice(0, 24),
+        })
+      );
+    }
 
     res.json({ ok: true });
   } catch (error: any) {
@@ -280,4 +365,7 @@ if (process.env.NODE_ENV === "production") {
 app.listen(PORT, () => {
   console.log(`Tetronix API Server running on port ${PORT}`);
   console.log(`Using Firestore for data storage`);
+  if (DEBUG_LOGS) {
+    console.log("Debug logging is ENABLED");
+  }
 });

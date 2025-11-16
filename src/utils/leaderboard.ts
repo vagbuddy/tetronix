@@ -154,6 +154,7 @@ export type SubmitGameInput = {
   playedSeconds?: number;
   seed: number;
   moves: any[];
+  locale?: string;
 };
 
 export const submitGame = async (payload: SubmitGameInput) => {
@@ -182,6 +183,7 @@ export const submitGame = async (payload: SubmitGameInput) => {
         playedSeconds: payload.playedSeconds ?? null,
         seed: payload.seed,
         moves: payload.moves,
+        locale: payload.locale,
       }),
     });
 
