@@ -4,8 +4,8 @@ service cloud.firestore {
 
     // Read-only leaderboard for the client
     match /leaderboard/{docId} {
-      allow read: if true;           // public reads
-      allow write: if false;         // clients never write directly
+      allow read: if request.auth != null;
+      allow create, update, delete: if false;
     }
 
     // Optional: client-side submissions path (only if you choose not to use Functions)
@@ -14,20 +14,8 @@ service cloud.firestore {
     // and you should keep write denied here.
     match /submissions/{submissionId} {
       allow read: if false;
-
-      allow create: if request.auth != null
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.name is string
-        && request.resource.data.difficulty in ['casual','master','expert','insane']
-        && request.resource.data.userScore is number
-        && request.resource.data.playedSeconds is number
-        && request.resource.data.seed is number
-        && request.resource.data.moves is list
-        // Enforce 1 submission per 5 minutes using a per-user throttle doc
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.lastSubmitAt <= request.time - duration.value(5, 'm')
-        // Require server-issued seed stored on user doc to match the submission's seed
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.activeSeed == request.resource.data.seed;
-
+      // Enforce App Check on submissions
+      allow create: if request.auth != null && request.app != null;
       allow update, delete: if false;
     }
 
@@ -35,7 +23,7 @@ service cloud.firestore {
     // Clients may read their own profile to obtain the seed but cannot write it.
     match /users/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
-      allow write: if false; // Only backend (Functions/Admin SDK) updates seed/lastSubmitAt
+      allow create, update, delete: if false;
     }
   }
 }

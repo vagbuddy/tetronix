@@ -1,5 +1,5 @@
 # dependencies
-/node_modules/
+node_modules/
 .pnp/
 .pnp.js
 
@@ -36,3 +36,16 @@ pnpm-debug.log*
 # optional cache folders
 /.cache/
 /.eslintcache
+
+# functions local dependencies
+functions/node_modules/
+
+# Firebase emulator logs and state
+.firebase/
+firebase-debug.log*
+firebase-debug.*
+
+# Firebase Service Account (for backend API)
+service-account.json
+# Keep the example template
+!service-account.json.example

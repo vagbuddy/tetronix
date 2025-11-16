@@ -1,29 +1,16 @@
 import { initializeApp, type FirebaseApp } from "firebase/app";
-import {
-  getFirestore,
-  collection,
-  serverTimestamp,
-  getDocs,
-  query,
-  orderBy,
-  where,
-  limit as qLimit,
-  type Firestore,
-} from "firebase/firestore";
+import { getFirestore, type Firestore } from "firebase/firestore";
 import {
   getAuth,
   signInAnonymously,
   type Auth,
   onAuthStateChanged,
 } from "firebase/auth";
-import {
-  getFunctions,
-  httpsCallable,
-  type Functions,
-} from "firebase/functions";
+import { getFunctions, type Functions } from "firebase/functions";
 import {
   initializeAppCheck,
   ReCaptchaV3Provider,
+  getToken,
   type AppCheck,
 } from "firebase/app-check";
 
@@ -50,6 +37,7 @@ const ensureInit = () => {
     apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
     authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
   } as const;
   if (!cfg.apiKey || !cfg.authDomain || !cfg.projectId) {
     // Not configured; operate in no-op mode to avoid crashes in local/dev without env vars
@@ -61,12 +49,25 @@ const ensureInit = () => {
   try {
     const siteKey = (import.meta as any).env.VITE_FIREBASE_RECAPTCHA_SITE_KEY;
     if (siteKey) {
+      if (import.meta.env.DEV) {
+        const debugToken = (import.meta as any).env
+          .VITE_FIREBASE_APPCHECK_DEBUG_TOKEN;
+        if (debugToken) {
+          (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken;
+        }
+      }
       appCheck = initializeAppCheck(app, {
         provider: new ReCaptchaV3Provider(siteKey),
         isTokenAutoRefreshEnabled: true,
       });
+      // Force a token request to ensure the key is active.
+      getToken(appCheck).catch((error) => {
+        console.error("Failed to get App Check token:", error);
+      });
     }
-  } catch {}
+  } catch (error) {
+    console.error("Error initializing App Check:", error);
+  }
   // Auth (anonymous)
   try {
     auth = getAuth(app);
@@ -74,6 +75,23 @@ const ensureInit = () => {
   // Functions
   try {
     functions = getFunctions(app);
+    // If developing locally, connect to the Functions emulator
+    if (import.meta.env.DEV) {
+      try {
+        // Dynamically import to avoid bundling emulator helpers in prod
+        import("firebase/functions")
+          .then((mod) => {
+            if (mod && (mod as any).connectFunctionsEmulator) {
+              (mod as any).connectFunctionsEmulator(
+                functions,
+                "localhost",
+                5001
+              );
+            }
+          })
+          .catch(() => {});
+      } catch {}
+    }
   } catch {}
   return { app, db };
 };
@@ -114,6 +132,20 @@ export const setLastSubmitAt = (t: number) => {
   } catch {}
 };
 
+const getAppCheckToken = async (): Promise<string | null> => {
+  if (!appCheck) {
+    // App Check might not be initialized if Firebase is not configured
+    return null;
+  }
+  try {
+    const appCheckToken = await getToken(appCheck, /* forceRefresh= */ false);
+    return appCheckToken.token;
+  } catch (err) {
+    console.error("Unable to retrieve App Check token:", err);
+    return null;
+  }
+};
+
 // Submit game to a callable backend (read-only FE)
 export type SubmitGameInput = {
   name: string;
@@ -125,25 +157,47 @@ export type SubmitGameInput = {
 };
 
 export const submitGame = async (payload: SubmitGameInput) => {
-  ensureInit();
-  if (!functions) return { ok: false as const, reason: "not-configured" };
   const uid = await ensureAnonAuth();
+  const appCheckToken = await getAppCheckToken();
+
   try {
-    const call = httpsCallable(functions, "submitGame");
-    await call({
-      uid,
-      name: payload.name?.slice(0, 24) || "Player",
-      difficulty: payload.difficulty,
-      userScore: Number(payload.userScore) || 0,
-      playedSeconds: payload.playedSeconds ?? null,
-      seed: payload.seed,
-      moves: payload.moves,
-      createdAt: Date.now(),
-      locale: typeof navigator !== "undefined" ? navigator.language : undefined,
-    } as any);
+    const apiUrl =
+      import.meta.env.VITE_API_URL ||
+      (import.meta.env.DEV ? "http://localhost:3001" : "");
+    const url = `${apiUrl}/api/submitGame`;
+
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (appCheckToken) {
+      headers["X-Firebase-AppCheck"] = appCheckToken;
+    }
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        uid,
+        name: payload.name?.slice(0, 24) || "Player",
+        difficulty: payload.difficulty,
+        score: Number(payload.userScore) || 0,
+        playedSeconds: payload.playedSeconds ?? null,
+        seed: payload.seed,
+        moves: payload.moves,
+      }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => "");
+      console.error("submitGame HTTP error", resp.status, text, url);
+      return { ok: false as const, reason: "call-failed" } as any;
+    }
+
+    const data = await resp.json();
     setLastSubmitAt(Date.now());
-    return { ok: true as const };
+    return data.ok
+      ? { ok: true as const }
+      : { ok: false as const, reason: "call-failed" };
   } catch (e) {
+    console.error("submitGame call error", e);
     return { ok: false as const, reason: "call-failed", error: e };
   }
 };
@@ -153,58 +207,74 @@ export const startGame = async (): Promise<
   { seed: number } | { ok: false; reason: string }
 > => {
   ensureInit();
-  if (!functions)
-    return { ok: false as const, reason: "not-configured" } as any;
   const uid = await ensureAnonAuth();
+  const appCheckToken = await getAppCheckToken();
   try {
-    const call = httpsCallable(functions, "startGame");
-    const res: any = await call({ uid });
-    if (typeof res?.data?.seed === "number") {
-      return { seed: res.data.seed };
+    const apiUrl =
+      import.meta.env.VITE_API_URL ||
+      (import.meta.env.DEV ? "http://localhost:3001" : "");
+    const url = `${apiUrl}/api/startGame`;
+
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (appCheckToken) {
+      headers["X-Firebase-AppCheck"] = appCheckToken;
     }
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ uid }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => "");
+      console.error("startGame HTTP error", resp.status, text, url);
+      return { ok: false as const, reason: "call-failed" } as any;
+    }
+
+    const data = await resp.json();
+    if (typeof data?.seed === "number") return { seed: data.seed } as any;
     return { ok: false as const, reason: "bad-response" } as any;
   } catch (e) {
+    console.error("startGame call error", e);
     return { ok: false as const, reason: "call-failed" } as any;
   }
 };
 
 export const getTopScores = async (difficulty?: Difficulty, limit = 5) => {
-  const { db } = ensureInit();
-  if (!db) return [] as ScoreEntry[];
-  const base = collection(db, "leaderboard");
+  const appCheckToken = await getAppCheckToken();
   try {
-    const q = difficulty
-      ? query(
-          base,
-          where("difficulty", "==", difficulty),
-          orderBy("score", "desc"),
-          qLimit(limit)
-        )
-      : query(base, orderBy("score", "desc"), qLimit(limit));
-    const snap = await getDocs(q);
-    const rows = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
+    const apiUrl =
+      import.meta.env.VITE_API_URL ||
+      (import.meta.env.DEV ? "http://localhost:3001" : "");
+    const params = new URLSearchParams();
+    if (difficulty) params.append("difficulty", difficulty);
+    params.append("limit", String(limit));
+
+    const url = `${apiUrl}/api/leaderboard?${params}`;
+
+    const headers: HeadersInit = {};
+    if (appCheckToken) {
+      headers["X-Firebase-AppCheck"] = appCheckToken;
+    }
+
+    const resp = await fetch(url, { headers });
+
+    if (!resp.ok) {
+      console.error("getTopScores HTTP error", resp.status);
+      return readCachedTopScores(difficulty) || [];
+    }
+
+    const rows = await resp.json();
     cacheTopScores(difficulty, rows);
     return rows;
-  } catch {
-    // Fallback: fetch more and filter client-side (avoids index requirement)
-    try {
-      const snap = await getDocs(
-        query(base, orderBy("score", "desc"), qLimit(100))
-      );
-      const items = snap.docs.map((d) => ({ id: d.id, ...(d.data() as any) }));
-      const filtered = difficulty
-        ? items.filter((i: any) => i.difficulty === difficulty).slice(0, limit)
-        : items.slice(0, limit);
-      cacheTopScores(difficulty, filtered);
-      return filtered;
-    } catch {
-      const cached = readCachedTopScores(difficulty);
-      return cached ?? [];
-    }
+  } catch (e) {
+    console.error("getTopScores call error", e);
+    return readCachedTopScores(difficulty) || [];
   }
 };
 
-// Local cache for leaderboard (used when Firestore is unreachable)
+// Local cache for leaderboard (used when API is unreachable)
 const TOP_CACHE_KEY = (difficulty?: Difficulty) =>
   `tetronix:top:${difficulty ?? "all"}`;
 
