@@ -7,6 +7,7 @@ interface GameInfoProps {
   clearsCount: number;
   gameOver: boolean;
   paused: boolean;
+  elapsedSeconds: number;
   onPause: () => void;
   onResume: () => void;
   onRestart: () => void;
@@ -18,12 +19,20 @@ const GameInfo: React.FC<GameInfoProps> = ({
   clearsCount,
   gameOver,
   paused,
+  elapsedSeconds,
   onPause,
   onResume,
   onRestart,
   rotationEnabled,
 }) => {
   const { t } = useTranslation();
+
+  const formatSeconds = (totalSeconds: number): string => {
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    if (minutes > 0) return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+    return `${seconds}s`;
+  };
 
   return (
     <div className="game-info">
@@ -35,6 +44,10 @@ const GameInfo: React.FC<GameInfoProps> = ({
           <div className="stat">
             <span className="stat-label">{t("clears")}:</span>
             <span className="stat-value">{clearsCount}</span>
+          </div>
+          <div className="stat">
+            <span className="stat-label">{t("timePlayed")}</span>
+            <span className="stat-value">{formatSeconds(elapsedSeconds)}</span>
           </div>
         </div>
       </div>

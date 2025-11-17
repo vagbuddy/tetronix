@@ -213,17 +213,26 @@ const DraggablePiece: React.FC<{
     // Compute which cell within the preview was clicked
     const rect = previewRef.current?.getBoundingClientRect();
     if (rect) {
-      const cellPx = CELL_SIZE * 0.5;
-      const maxCol = (piece.shape[0]?.length || 1) - 1;
-      const maxRow = piece.shape.length - 1;
-      const col = Math.max(
-        0,
-        Math.min(maxCol, Math.floor((e.clientX - rect.left) / cellPx))
-      );
-      const row = Math.max(
-        0,
-        Math.min(maxRow, Math.floor((e.clientY - rect.top) / cellPx))
-      );
+      // Compute cell pixel size from the actual preview rect so we match
+      // any CSS scaling or media-query overrides (don't assume CELL_SIZE).
+      const cellPx = rect.width / 5;
+      // Preview renders the piece centered inside a 5x5 box. Convert the
+      // pointer coordinates in the preview (0..4) to piece-local coords by
+      // subtracting the centering offset so the touched cell maps to the
+      // correct filled cell in the piece's shape. This keeps the drag
+      // anchor aligned when touching edges of the preview.
+      const previewCol = Math.floor((e.clientX - rect.left) / cellPx + 0.5);
+      const previewRow = Math.floor((e.clientY - rect.top) / cellPx + 0.5);
+      const pieceWidth = piece.shape[0]?.length || 1;
+      const pieceHeight = piece.shape.length;
+      const offsetX = Math.floor((5 - pieceWidth) / 2);
+      const offsetY = Math.floor((5 - pieceHeight) / 2);
+      const desiredCol = previewCol - offsetX;
+      const desiredRow = previewRow - offsetY;
+      const maxCol = pieceWidth - 1;
+      const maxRow = pieceHeight - 1;
+      const col = Math.max(0, Math.min(maxCol, desiredCol));
+      const row = Math.max(0, Math.min(maxRow, desiredRow));
       const anchor = resolveFilledAnchor({ row, col });
       anchorRef.current = anchor;
       setDragAnchor(anchor);
@@ -260,17 +269,20 @@ const DraggablePiece: React.FC<{
     // attempt to compute anchor for mouse-drag as well
     const rect = previewRef.current?.getBoundingClientRect();
     if (rect) {
-      const cellPx = CELL_SIZE * 0.5;
-      const maxCol = (piece.shape[0]?.length || 1) - 1;
-      const maxRow = piece.shape.length - 1;
-      const col = Math.max(
-        0,
-        Math.min(maxCol, Math.floor((e.clientX - rect.left) / cellPx))
-      );
-      const row = Math.max(
-        0,
-        Math.min(maxRow, Math.floor((e.clientY - rect.top) / cellPx))
-      );
+      // Compute cell size from the preview element to account for CSS scaling
+      const cellPx = rect.width / 5;
+      const previewCol = Math.floor((e.clientX - rect.left) / cellPx + 0.5);
+      const previewRow = Math.floor((e.clientY - rect.top) / cellPx + 0.5);
+      const pieceWidth = piece.shape[0]?.length || 1;
+      const pieceHeight = piece.shape.length;
+      const offsetX = Math.floor((5 - pieceWidth) / 2);
+      const offsetY = Math.floor((5 - pieceHeight) / 2);
+      const desiredCol = previewCol - offsetX;
+      const desiredRow = previewRow - offsetY;
+      const maxCol = pieceWidth - 1;
+      const maxRow = pieceHeight - 1;
+      const col = Math.max(0, Math.min(maxCol, desiredCol));
+      const row = Math.max(0, Math.min(maxRow, desiredRow));
       const anchor = resolveFilledAnchor({ row, col });
       anchorRef.current = anchor;
       setDragAnchor(anchor);

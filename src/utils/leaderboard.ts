@@ -243,6 +243,48 @@ export const startGame = async (): Promise<
   }
 };
 
+export const verifySeed = async (
+  seed: number
+): Promise<{ valid: boolean; reason?: string }> => {
+  ensureInit();
+  const uid = await ensureAnonAuth();
+  const appCheckToken = await getAppCheckToken();
+
+  if (!uid || typeof seed !== "number") {
+    return { valid: false, reason: "missing-params" };
+  }
+
+  try {
+    const apiUrl =
+      import.meta.env.VITE_API_URL ||
+      (import.meta.env.DEV ? "http://localhost:3001" : "");
+    const url = `${apiUrl}/api/verifySeed`;
+
+    const headers: HeadersInit = { "Content-Type": "application/json" };
+    if (appCheckToken) {
+      headers["X-Firebase-AppCheck"] = appCheckToken;
+    }
+
+    const resp = await fetch(url, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ uid, seed }),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => "");
+      console.error("verifySeed HTTP error", resp.status, text, url);
+      return { valid: false, reason: "call-failed" };
+    }
+
+    const data = await resp.json();
+    return { valid: !!data?.valid, reason: data?.reason };
+  } catch (e) {
+    console.error("verifySeed call error", e);
+    return { valid: false, reason: "call-error" };
+  }
+};
+
 export const getTopScores = async (difficulty?: Difficulty, limit = 5) => {
   const appCheckToken = await getAppCheckToken();
   try {

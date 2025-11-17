@@ -4,15 +4,7 @@ services:
     name: Tetronix
     env: node
     plan: free
-    branch: main
-    buildCommand: npm install && npm run build && cd api && npm install && npm run build
-    startCommand: cd api && npm start
-    envVars:
-      - key: NODE_ENV
-        value: production
-      - key: FIREBASE_PROJECT_ID
-        sync: false
-      - key: FIREBASE_CLIENT_EMAIL
-        sync: false
-      - key: FIREBASE_PRIVATE_KEY
-        sync: false
+    branch: master
+    nodeVersion: 20
+    buildCommand: npm install && npm run build
+    startCommand: serve -s build

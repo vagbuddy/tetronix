@@ -3,9 +3,9 @@ import { useTranslation } from "react-i18next";
 import "./LanguageSelector.css";
 
 const languages = [
-  { code: "en", flag: "🇬🇧" },
-  { code: "ee", flag: "🇪🇪" },
-  { code: "ru", flag: "🇷🇺" },
+  { code: "en", label: "EN" },
+  { code: "ee", label: "EE" },
+  { code: "ru", label: "RU" },
 ];
 
 const LanguageSelector: React.FC = () => {
@@ -38,7 +38,7 @@ const LanguageSelector: React.FC = () => {
         aria-label="Select language"
         onClick={() => setOpen((v) => !v)}
       >
-        {current.flag}
+        {current.label}
       </button>
       {open && (
         <div className="lang-selector__dropdown">
@@ -52,7 +52,7 @@ const LanguageSelector: React.FC = () => {
               }}
               aria-label={lang.code}
             >
-              {lang.flag}
+              {lang.label}
             </button>
           ))}
         </div>

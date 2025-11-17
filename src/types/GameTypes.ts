@@ -82,6 +82,7 @@ export type GameAction =
       seedFromServer?: boolean;
     }
   | { type: "RESET_WITH_SEED"; seed: number; seedFromServer?: boolean }
+  | { type: "MARK_SEED_VERIFIED" }
   | { type: "CLEARING_DONE" };
 
 // Difficulty levels and rules summary:

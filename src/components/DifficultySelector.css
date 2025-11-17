@@ -1,19 +1,70 @@
+@media (max-width: 375px) {
+  .difficulty-selector {
+    padding: 2px;
+    margin-bottom: 6px;
+  }
+  .difficulty-options {
+    gap: 1px;
+  }
+  .difficulty-content {
+    padding: 2px 1px;
+    min-width: 20px;
+  }
+  .difficulty-text {
+    font-size: 0.65rem;
+    letter-spacing: 0.2px;
+  }
+  .difficulty-slot-left,
+  .difficulty-slot-right {
+    margin: 0;
+  }
+}
 .difficulty-selector {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 15px;
-  padding: 15px;
-  background: rgba(255, 255, 255, 0.1);
+  padding: 15px 16px;
+  background: rgba(255, 255, 255, 0.08);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
   border-radius: 12px;
   margin-bottom: 20px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   width: 100%;
-  max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.difficulty-selector--with-slots {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.difficulty-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.difficulty-slot-left {
+  flex: 0 0 auto;
+}
+.difficulty-slot-right {
+  flex: 0 0 auto;
+}
+
+.difficulty-options {
+  flex: 1 1 0%;
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+  justify-content: center;
+  width: auto;
 }
 
 .difficulty-label {
@@ -23,13 +74,7 @@
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
 }
 
-.difficulty-options {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
-  width: 100%;
-}
+/* removed duplicate .difficulty-options block above */
 
 .difficulty-option {
   position: relative;
@@ -48,13 +93,14 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding: 10px 16px;
+  gap: 2px;
+  padding: 7px 8px;
   background: rgba(255, 255, 255, 0.15);
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 10px;
   transition: all 0.3s ease;
-  min-width: 80px;
+  min-width: 48px;
+  flex-shrink: 1;
 }
 
 .difficulty-emoji {
@@ -188,27 +234,17 @@
 /* Mobile responsiveness */
 @media (max-width: 768px) {
   .difficulty-selector {
-    gap: 8px;
-    padding: 10px;
-    margin-bottom: 15px;
+    gap: 0;
+    padding: 8px;
+    margin-bottom: 12px;
   }
-
   .difficulty-options {
-    gap: 8px;
-    flex-wrap: nowrap;
-    width: 100%;
+    gap: 4px;
   }
-
-  .difficulty-option {
-    flex: 1;
-  }
-
   .difficulty-content {
-    padding: 10px 8px;
-    min-width: auto;
-    width: 100%;
+    padding: 6px 4px;
+    min-width: 36px;
   }
-
   .difficulty-text {
     font-size: 0.8rem;
   }
@@ -216,18 +252,20 @@
 
 @media (max-width: 480px) {
   .difficulty-selector {
-    padding: 8px;
-    gap: 6px;
+    padding: 4px;
+    margin-bottom: 8px;
   }
-
+  .difficulty-slot-left,
+  .difficulty-slot-right {
+    margin: 0;
+  }
   .difficulty-options {
-    gap: 6px;
+    gap: 2px;
   }
-
   .difficulty-content {
-    padding: 8px 4px;
+    padding: 4px 2px;
+    min-width: 28px;
   }
-
   .difficulty-text {
     font-size: 0.7rem;
   }

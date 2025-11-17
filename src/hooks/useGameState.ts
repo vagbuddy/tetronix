@@ -1,4 +1,11 @@
-import { useReducer, useCallback, useEffect } from "react";
+import {
+  useReducer,
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useRef,
+} from "react";
 import {
   GameState,
   GameAction,
@@ -24,9 +31,55 @@ import {
   canPlaceAnyPiece,
 } from "../utils/GameLogic";
 import { randomSeed, type RngState } from "../utils/prng";
-import { startGame } from "../utils/leaderboard";
+import { startGame, verifySeed } from "../utils/leaderboard";
 
 const DIFFICULTY_KEY = "tetronix:difficulty";
+const SAVE_KEY = "tetronix:game_v1";
+
+const isValidDifficulty = (v: any): v is Difficulty =>
+  v === "casual" || v === "master" || v === "expert" || v === "insane";
+
+const loadSavedState = (): GameState | undefined => {
+  try {
+    if (typeof window === "undefined") return undefined;
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return undefined;
+    const parsed = JSON.parse(raw);
+    const s = parsed?.state;
+    if (!s) return undefined;
+
+    // Basic validation
+    if (!Array.isArray(s.grid) || !Array.isArray(s.availablePieces))
+      return undefined;
+    if (typeof s.score !== "number" || typeof s.clearsCount !== "number")
+      return undefined;
+    if (!isValidDifficulty(s.difficulty)) return undefined;
+
+    // Rehydrate and normalize: avoid restoring transient fields like clearingCells
+    const restored: GameState = {
+      grid: s.grid,
+      availablePieces: s.availablePieces,
+      selectedPiece: s.selectedPiece || null,
+      score: s.score || 0,
+      clearsCount: s.clearsCount || 0,
+      gameOver: !!s.gameOver,
+      // When loading from storage, keep the game paused until user confirms
+      paused: true,
+      startTime: typeof s.startTime === "number" ? s.startTime : Date.now(),
+      endTime: typeof s.endTime === "number" ? s.endTime : undefined,
+      clearingCells: [],
+      difficulty: s.difficulty,
+      seed: typeof s.seed === "number" ? s.seed : randomSeed(),
+      rng: typeof s.rng === "number" ? s.rng : randomSeed(),
+      moveLog: Array.isArray(s.moveLog) ? s.moveLog : [],
+      seedFromServer: !!s.seedFromServer,
+    };
+
+    return restored;
+  } catch (e) {
+    return undefined;
+  }
+};
 
 const getSavedDifficulty = (): Difficulty => {
   try {
@@ -374,13 +427,33 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     case "CLEARING_DONE":
       return { ...state, clearingCells: [] };
 
+    case "MARK_SEED_VERIFIED":
+      if (state.seedFromServer) {
+        return state;
+      }
+      return { ...state, seedFromServer: true };
+
     default:
       return state;
   }
 };
 
 export const useGameState = () => {
-  const [state, dispatch] = useReducer(gameReducer, initialState);
+  // Try to load saved state (synchronously) so we can show a continue prompt
+  const saved = typeof window !== "undefined" ? loadSavedState() : undefined;
+  const initialLoadedFromStorage = !!saved;
+  const initialLoadedRef = useRef(initialLoadedFromStorage);
+  const [hasSaved, setHasSaved] = useState<boolean>(initialLoadedFromStorage);
+
+  const [state, dispatch] = useReducer(gameReducer, saved || initialState);
+  const needsSeedVerification =
+    saved && !saved.seedFromServer && typeof saved.seed === "number"
+      ? saved.seed
+      : null;
+  const [pendingSeedVerification, setPendingSeedVerification] = useState<
+    number | null
+  >(needsSeedVerification);
+  const skipSaveRef = useRef(false);
 
   const selectPiece = useCallback((piece: TetrisPiece) => {
     dispatch({ type: "SELECT_PIECE", piece });
@@ -422,6 +495,7 @@ export const useGameState = () => {
   }, []);
 
   const restart = useCallback(() => {
+    setPendingSeedVerification(null);
     (async () => {
       const res = await startGame();
       if ((res as any)?.seed != null) {
@@ -436,11 +510,26 @@ export const useGameState = () => {
     })();
   }, []);
 
+  const discardSavedAndRestart = useCallback(() => {
+    // Prevent the next automatic persist from re-creating the saved game
+    skipSaveRef.current = true;
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(SAVE_KEY);
+      }
+    } catch {}
+    setHasSaved(false);
+    setPendingSeedVerification(null);
+    // restart will reset to initialState but keep difficulty
+    dispatch({ type: "RESTART" });
+  }, []);
+
   const continueGame = useCallback(() => {
     dispatch({ type: "CONTINUE_GAME" });
   }, []);
 
   const setDifficulty = useCallback((difficulty: Difficulty) => {
+    setPendingSeedVerification(null);
     (async () => {
       const res = await startGame();
       if ((res as any)?.seed != null) {
@@ -456,6 +545,93 @@ export const useGameState = () => {
     })();
   }, []);
 
+  // Re-verify saved seeds that were issued by the server but lacked the flag
+  // (e.g., because the initial verification attempt happened offline).
+  useEffect(() => {
+    if (
+      pendingSeedVerification == null ||
+      state.seedFromServer ||
+      typeof window === "undefined"
+    ) {
+      return;
+    }
+
+    let cancelled = false;
+    let retryHandle: number | null = null;
+    let attempt = 0;
+    const fatalReasons = new Set([
+      "seed_not_found",
+      "seed_already_used",
+      "missing-params",
+    ]);
+
+    const scheduleRetry = () => {
+      const delay = Math.min(
+        60000,
+        5000 * Math.pow(2, Math.max(0, attempt - 1))
+      );
+      retryHandle = window.setTimeout(runVerification, delay);
+    };
+
+    const runVerification = async () => {
+      attempt += 1;
+      const res = await verifySeed(pendingSeedVerification);
+      if (cancelled) return;
+
+      if (res?.valid) {
+        dispatch({ type: "MARK_SEED_VERIFIED" });
+        setPendingSeedVerification(null);
+        return;
+      }
+
+      if (res?.reason && fatalReasons.has(res.reason)) {
+        setPendingSeedVerification(null);
+        return;
+      }
+
+      scheduleRetry();
+    };
+
+    runVerification();
+
+    return () => {
+      cancelled = true;
+      if (retryHandle != null) {
+        clearTimeout(retryHandle);
+      }
+    };
+  }, [pendingSeedVerification, state.seedFromServer, dispatch]);
+
+  useEffect(() => {
+    if (state.seedFromServer && pendingSeedVerification !== null) {
+      setPendingSeedVerification(null);
+    }
+  }, [state.seedFromServer, pendingSeedVerification]);
+
+  // Persist meaningful game state to localStorage so users can resume later.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (skipSaveRef.current) {
+      skipSaveRef.current = false;
+      return;
+    }
+
+    try {
+      const payload = {
+        state: {
+          ...state,
+          clearingCells: [],
+        },
+        version: 1,
+        savedAt: Date.now(),
+      };
+      localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+      setHasSaved(true);
+    } catch {
+      /* ignore quota errors */
+    }
+  }, [state]);
+
   // Auto-clear the clearing overlay after the animation duration
   useEffect(() => {
     if (state.clearingCells.length > 0) {
@@ -466,6 +642,10 @@ export const useGameState = () => {
 
   // On first mount, try to request a server-issued seed
   useEffect(() => {
+    if (initialLoadedRef.current) {
+      return;
+    }
+
     let cancelled = false;
     (async () => {
       const res = await startGame();
@@ -496,5 +676,10 @@ export const useGameState = () => {
     restart,
     continueGame,
     setDifficulty,
+    // persistence helpers
+    hasSaved,
+    discardSavedAndRestart,
+    // whether a saved state was present at initialization (useful to avoid UI flicker)
+    loadedFromStorage: initialLoadedRef.current,
   };
 };

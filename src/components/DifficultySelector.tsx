@@ -6,11 +6,15 @@ import type { Difficulty } from "../types/GameTypes";
 interface DifficultySelectorProps {
   difficulty: Difficulty;
   onDifficultyChange: (difficulty: Difficulty) => void;
+  leftSlot?: React.ReactNode;
+  rightSlot?: React.ReactNode;
 }
 
 const DifficultySelector: React.FC<DifficultySelectorProps> = ({
   difficulty,
   onDifficultyChange,
+  leftSlot,
+  rightSlot,
 }) => {
   const { t } = useTranslation();
 
@@ -25,7 +29,11 @@ const DifficultySelector: React.FC<DifficultySelectorProps> = ({
   ];
 
   return (
-    <div className="difficulty-selector">
+    <div className="difficulty-selector difficulty-selector--with-slots">
+      {leftSlot && (
+        <div className="difficulty-slot difficulty-slot-left">{leftSlot}</div>
+      )}
+
       <div className="difficulty-options">
         {difficulties.map((diff) => (
           <label
@@ -34,13 +42,15 @@ const DifficultySelector: React.FC<DifficultySelectorProps> = ({
               difficulty === diff.value ? "selected" : ""
             }`}
             data-difficulty={diff.value}
+            onClick={() => onDifficultyChange(diff.value)}
+            style={{ cursor: "pointer" }}
           >
             <input
               type="radio"
               name="difficulty"
               value={diff.value}
               checked={difficulty === diff.value}
-              onChange={(e) => onDifficultyChange(e.target.value as Difficulty)}
+              readOnly
             />
             <span className="difficulty-content">
               <span className="difficulty-text">{diff.label}</span>
@@ -48,6 +58,10 @@ const DifficultySelector: React.FC<DifficultySelectorProps> = ({
           </label>
         ))}
       </div>
+
+      {rightSlot && (
+        <div className="difficulty-slot difficulty-slot-right">{rightSlot}</div>
+      )}
     </div>
   );
 };
