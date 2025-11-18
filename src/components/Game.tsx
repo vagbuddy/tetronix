@@ -110,9 +110,11 @@ const Game: React.FC = () => {
   }, [state.paused, state.gameOver, pause, resume]);
 
   const isGameStarted = () => {
-    return state.score > 0 || 
+    return (
+      state.score > 0 ||
       state.grid.some((row) => row.some((cell: any) => cell && cell.filled)) ||
-      state.availablePieces.some((p) => p.isPlaced);
+      state.availablePieces.some((p) => p.isPlaced)
+    );
   };
 
   const handleRestartClick = () => {
