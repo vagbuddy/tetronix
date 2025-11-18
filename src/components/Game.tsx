@@ -109,9 +109,14 @@ const Game: React.FC = () => {
     };
   }, [state.paused, state.gameOver, pause, resume]);
 
+  const isGameStarted = () => {
+    return state.score > 0 || 
+      state.grid.some((row) => row.some((cell: any) => cell && cell.filled)) ||
+      state.availablePieces.some((p) => p.isPlaced);
+  };
+
   const handleRestartClick = () => {
-    const hasPlacedPieces = state.availablePieces.some((p) => p.isPlaced);
-    if (!state.gameOver && hasPlacedPieces) {
+    if (!state.gameOver && isGameStarted()) {
       setShowRestartConfirm(true);
     } else {
       restart();
@@ -119,17 +124,16 @@ const Game: React.FC = () => {
   };
 
   const handleDifficultyClick = (newDifficulty: Difficulty) => {
-    const hasPlacedPieces = state.availablePieces.some((p) => p.isPlaced);
     if (newDifficulty === state.difficulty) {
       // Clicking same difficulty: restart with confirmation if game is active
-      if (!state.gameOver && hasPlacedPieces) {
+      if (!state.gameOver && isGameStarted()) {
         setShowRestartConfirm(true);
       } else {
         restart();
       }
     } else {
       // Changing difficulty: show confirmation if game is active
-      if (!state.gameOver && hasPlacedPieces) {
+      if (!state.gameOver && isGameStarted()) {
         setPendingDifficulty(newDifficulty);
         setShowDifficultyConfirm(true);
       } else {
