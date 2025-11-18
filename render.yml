@@ -1,10 +1,12 @@
 services:
-  # Full-stack service (Backend API + Frontend) with Firestore
+  # Single web service that builds the Vite frontend and runs the Express API
   - type: web
     name: Tetronix
     env: node
     plan: free
     branch: master
     nodeVersion: 20
-    buildCommand: npm install && npm run build
-    startCommand: serve -s build
+    buildCommand: >-
+      npm install && npm run build &&
+      npm --prefix api install && npm --prefix api run build
+    startCommand: bash -c "cd api && npm run start"
