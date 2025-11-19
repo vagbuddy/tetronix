@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { useGameState } from "../hooks/useGameState";
 import GameBoard from "./GameBoard";
@@ -9,6 +9,7 @@ import GameOverModal from "./GameOverModal";
 import DifficultySelector from "./DifficultySelector";
 import LanguageSelector from "./LanguageSelector";
 import SettingsButton from "./SettingsButton";
+import SettingsModal from "./SettingsModal";
 import "./Game.css";
 import { isMobile } from "../utils/DeviceDetection";
 import type { Difficulty } from "../types/GameTypes";
@@ -46,15 +47,44 @@ const Game: React.FC = () => {
     !!loadedFromStorage
   );
 
-  // Calculate elapsed seconds from startTime and endTime
-  const elapsedSeconds = useMemo(() => {
-    if (state.endTime) {
-      // Game is over, use fixed endTime
-      return Math.floor((state.endTime - state.startTime) / 1000);
+  // Timer state for live updating
+  const [liveElapsed, setLiveElapsed] = useState(0);
+  const intervalRef = React.useRef<number | null>(null);
+
+  // Update timer every second while game is running
+  useEffect(() => {
+    // Clear any existing interval before proceeding
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
-    // Game is still running
-    return Math.floor((Date.now() - state.startTime) / 1000);
-  }, [state.startTime, state.endTime]);
+
+    if (!state.startTime) {
+      setLiveElapsed(0);
+      return;
+    }
+
+    // If paused or game over, freeze timer at pause time (if available) or endTime
+    if (state.paused || state.gameOver) {
+      const stopAt = state.paused
+        ? state.pausedAt || state.endTime || Date.now()
+        : state.endTime || Date.now();
+      setLiveElapsed(Math.floor((stopAt - state.startTime!) / 1000));
+      return;
+    }
+
+    // Only run interval when game is active
+    setLiveElapsed(Math.floor((Date.now() - state.startTime!) / 1000));
+    intervalRef.current = window.setInterval(() => {
+      setLiveElapsed(Math.floor((Date.now() - state.startTime!) / 1000));
+    }, 1000) as unknown as number;
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
+  }, [state.startTime, state.endTime, state.paused, state.gameOver]);
 
   // Show the load prompt only if a saved game was present at initial load.
   // This avoids re-prompting on subsequent autosaves.
@@ -197,7 +227,7 @@ const Game: React.FC = () => {
               clearsCount={state.clearsCount}
               gameOver={state.gameOver}
               paused={state.paused}
-              elapsedSeconds={elapsedSeconds}
+              elapsedSeconds={liveElapsed}
               onPause={pause}
               onResume={resume}
               onRestart={handleRestartClick}
@@ -222,9 +252,13 @@ const Game: React.FC = () => {
       {state.gameOver && (
         <GameOverModal
           score={state.score}
-          playedSeconds={Math.floor(
-            ((state.endTime || Date.now()) - state.startTime) / 1000
-          )}
+          playedSeconds={
+            state.startTime
+              ? Math.floor(
+                  ((state.endTime || Date.now()) - state.startTime) / 1000
+                )
+              : 0
+          }
           difficulty={state.difficulty as Difficulty}
           seed={state.seed}
           moves={state.moveLog}
@@ -235,22 +269,10 @@ const Game: React.FC = () => {
       )}
 
       {showSettings && (
-        <div className="game-over-overlay">
-          <div className="game-over-modal">
-            <h2>Settings</h2>
-            <div style={{ marginBottom: 12 }}>
-              <LanguageSelector />
-            </div>
-            <div className="game-over-buttons">
-              <button
-                className="continue-button"
-                onClick={() => setShowSettings(false)}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
+        <SettingsModal
+          open={showSettings}
+          onClose={() => setShowSettings(false)}
+        />
       )}
 
       {showRestartConfirm && (

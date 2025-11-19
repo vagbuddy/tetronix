@@ -65,7 +65,7 @@ const loadSavedState = (): GameState | undefined => {
       gameOver: !!s.gameOver,
       // When loading from storage, keep the game paused until user confirms
       paused: true,
-      startTime: typeof s.startTime === "number" ? s.startTime : Date.now(),
+      startTime: typeof s.startTime === "number" ? s.startTime : undefined,
       endTime: typeof s.endTime === "number" ? s.endTime : undefined,
       clearingCells: [],
       difficulty: s.difficulty,
@@ -106,7 +106,7 @@ const initialState: GameState = {
   clearsCount: 0,
   gameOver: false,
   paused: false,
-  startTime: Date.now(),
+  startTime: undefined,
   clearingCells: [],
   difficulty: getSavedDifficulty(),
   seed: initialSeed,
@@ -260,6 +260,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         timestamp: new Date(),
       };
 
+      // Set startTime only on first move
+      const isFirstMove = state.moveLog.length === 0;
       return {
         ...state,
         grid: finalGrid,
@@ -272,6 +274,7 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         endTime: !canContinue ? Date.now() : state.endTime,
         rng: nextRng,
         moveLog: [...state.moveLog, newMove],
+        startTime: isFirstMove ? Date.now() : state.startTime,
       };
     }
 
@@ -349,10 +352,22 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
     }
 
     case "PAUSE":
-      return { ...state, paused: true };
+      return { ...state, paused: true, pausedAt: Date.now() };
 
-    case "RESUME":
-      return { ...state, paused: false };
+    case "RESUME": {
+      // When resuming, adjust startTime to exclude time spent paused so
+      // the elapsed timer doesn't count the paused duration.
+      if (state.pausedAt && typeof state.startTime === "number") {
+        const pausedDuration = Date.now() - state.pausedAt;
+        return {
+          ...state,
+          paused: false,
+          pausedAt: undefined,
+          startTime: state.startTime + pausedDuration,
+        };
+      }
+      return { ...state, paused: false, pausedAt: undefined };
+    }
 
     case "RESTART": {
       const seed = randomSeed();
@@ -361,7 +376,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         ...initialState,
         difficulty: state.difficulty,
         availablePieces: gen.pieces,
-        startTime: Date.now(),
+        startTime: undefined,
+        pausedAt: undefined,
         seed,
         rng: gen.rng,
         moveLog: [],
@@ -386,7 +402,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         ...initialState,
         difficulty: newDifficulty,
         availablePieces: gen.pieces,
-        startTime: Date.now(),
+        startTime: undefined,
+        pausedAt: undefined,
         seed,
         rng: gen.rng,
         moveLog: [],
@@ -401,7 +418,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         ...initialState,
         difficulty,
         availablePieces: gen.pieces,
-        startTime: Date.now(),
+        startTime: undefined,
+        pausedAt: undefined,
         seed,
         rng: gen.rng,
         moveLog: [],
@@ -416,7 +434,8 @@ const gameReducer = (state: GameState, action: GameAction): GameState => {
         ...initialState,
         difficulty: state.difficulty,
         availablePieces: gen.pieces,
-        startTime: Date.now(),
+        startTime: undefined,
+        pausedAt: undefined,
         seed,
         rng: gen.rng,
         moveLog: [],

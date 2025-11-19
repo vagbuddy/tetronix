@@ -32,7 +32,8 @@ export interface GameState {
   clearsCount: number;
   gameOver: boolean;
   paused: boolean;
-  startTime: number;
+  pausedAt?: number; // timestamp when game was paused (used to freeze timer)
+  startTime: number | undefined;
   endTime?: number; // timestamp when game ended (for fixed timer display)
   clearingCells: ClearedCell[]; // transient overlay for clear animation
   difficulty: Difficulty;

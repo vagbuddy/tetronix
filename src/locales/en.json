@@ -68,5 +68,10 @@
     "message": "Would you like to continue your saved game or start a new one?",
     "continue": "Continue",
     "startNew": "Start New"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "close": "Close"
   }
 }
