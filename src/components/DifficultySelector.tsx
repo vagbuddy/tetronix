@@ -42,15 +42,34 @@ const DifficultySelector: React.FC<DifficultySelectorProps> = ({
               difficulty === diff.value ? "selected" : ""
             }`}
             data-difficulty={diff.value}
-            onClick={() => onDifficultyChange(diff.value)}
             style={{ cursor: "pointer" }}
+            onClick={() => {
+              // If user clicks the already-selected radio, `onChange` won't fire.
+              // Allow clicking the selected option to re-trigger the handler
+              // (useful to restart/refresh the game using the same difficulty).
+              if (difficulty === diff.value) {
+                // eslint-disable-next-line no-console
+                console.debug(
+                  "DifficultySelector:onClick (reselect)",
+                  diff.value
+                );
+                onDifficultyChange(diff.value);
+              }
+            }}
           >
             <input
               type="radio"
               name="difficulty"
               value={diff.value}
               checked={difficulty === diff.value}
-              readOnly
+              onChange={() => {
+                // Use the input change event to avoid duplicate activations
+                // that can occur when both label click and input activation fire.
+                // Add a debug log to confirm single invocation during development.
+                // eslint-disable-next-line no-console
+                console.debug("DifficultySelector:onChange", diff.value);
+                onDifficultyChange(diff.value);
+              }}
             />
             <span className="difficulty-content">
               <span className="difficulty-text">{diff.label}</span>

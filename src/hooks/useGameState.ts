@@ -465,6 +465,9 @@ export const useGameState = () => {
   const [hasSaved, setHasSaved] = useState<boolean>(initialLoadedFromStorage);
 
   const [state, dispatch] = useReducer(gameReducer, saved || initialState);
+  // Guard to prevent concurrent startGame calls (avoids duplicate server requests
+  // and duplicate restarts if UI triggers the action twice rapidly).
+  const startGamePendingRef = useRef(false);
   const needsSeedVerification =
     saved && !saved.seedFromServer && typeof saved.seed === "number"
       ? saved.seed
@@ -515,16 +518,22 @@ export const useGameState = () => {
 
   const restart = useCallback(() => {
     setPendingSeedVerification(null);
+    if (startGamePendingRef.current) return;
+    startGamePendingRef.current = true;
     (async () => {
-      const res = await startGame();
-      if ((res as any)?.seed != null) {
-        dispatch({
-          type: "RESET_WITH_SEED",
-          seed: (res as any).seed,
-          seedFromServer: true,
-        });
-      } else {
-        dispatch({ type: "RESTART" });
+      try {
+        const res = await startGame();
+        if ((res as any)?.seed != null) {
+          dispatch({
+            type: "RESET_WITH_SEED",
+            seed: (res as any).seed,
+            seedFromServer: true,
+          });
+        } else {
+          dispatch({ type: "RESTART" });
+        }
+      } finally {
+        startGamePendingRef.current = false;
       }
     })();
   }, []);
@@ -549,17 +558,23 @@ export const useGameState = () => {
 
   const setDifficulty = useCallback((difficulty: Difficulty) => {
     setPendingSeedVerification(null);
+    if (startGamePendingRef.current) return;
+    startGamePendingRef.current = true;
     (async () => {
-      const res = await startGame();
-      if ((res as any)?.seed != null) {
-        dispatch({
-          type: "SET_DIFFICULTY_WITH_SEED",
-          difficulty,
-          seed: (res as any).seed,
-          seedFromServer: true,
-        });
-      } else {
-        dispatch({ type: "SET_DIFFICULTY", difficulty });
+      try {
+        const res = await startGame();
+        if ((res as any)?.seed != null) {
+          dispatch({
+            type: "SET_DIFFICULTY_WITH_SEED",
+            difficulty,
+            seed: (res as any).seed,
+            seedFromServer: true,
+          });
+        } else {
+          dispatch({ type: "SET_DIFFICULTY", difficulty });
+        }
+      } finally {
+        startGamePendingRef.current = false;
       }
     })();
   }, []);
@@ -665,17 +680,25 @@ export const useGameState = () => {
       return;
     }
 
+    if (startGamePendingRef.current) return;
+    startGamePendingRef.current = true;
+
     let cancelled = false;
     (async () => {
-      const res = await startGame();
-      if (!cancelled && (res as any)?.seed != null) {
-        dispatch({
-          type: "RESET_WITH_SEED",
-          seed: (res as any).seed,
-          seedFromServer: true,
-        });
+      try {
+        const res = await startGame();
+        if (!cancelled && (res as any)?.seed != null) {
+          dispatch({
+            type: "RESET_WITH_SEED",
+            seed: (res as any).seed,
+            seedFromServer: true,
+          });
+        }
+      } finally {
+        startGamePendingRef.current = false;
       }
     })();
+
     return () => {
       cancelled = true;
     };

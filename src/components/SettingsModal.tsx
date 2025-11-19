@@ -1,6 +1,7 @@
 import React from "react";
 import { useTranslation } from "react-i18next";
 import LanguageSelector from "./LanguageSelector";
+import DisabledAwareButton from "./DisabledAwareButton";
 import "./SettingsModal.css";
 
 interface Props {
@@ -35,9 +36,13 @@ const SettingsModal: React.FC<Props> = ({ open, onClose }) => {
         </div>
 
         <div className="settings-actions">
-          <button className="continue-button" onClick={onClose}>
+          <DisabledAwareButton
+            className="continue-button"
+            onClick={onClose}
+            // not disabled here, but when used elsewhere pass `disabled` and `disabledReason`
+          >
             {t("settings.close", { defaultValue: "Close" })}
-          </button>
+          </DisabledAwareButton>
         </div>
       </div>
     </div>

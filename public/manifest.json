@@ -1,6 +1,7 @@
 {
-  "short_name": "React App",
-  "name": "Create React App Sample",
+  "short_name": "Tetronix",
+  "name": "Sudoku Tetris — Tetronix",
+  "description": "Sudoku Tetris - A puzzle game combining Sudoku and Tetris",
   "icons": [
     {
       "src": "favicon.ico",
@@ -19,7 +20,9 @@
     }
   ],
   "start_url": ".",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#000000",
+  "orientation": "landscape-primary",
+  "theme_color": "#1e3c72",
   "background_color": "#ffffff"
 }
