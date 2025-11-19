@@ -1,19 +1,43 @@
-# Development stage
-FROM node:22-slim AS development
+# ---------- Frontend build ----------
+FROM node:20-slim AS frontend-build
 WORKDIR /app
-COPY package*.json ./
-RUN npm install
-COPY . .
-EXPOSE 3000
-CMD ["npm", "start"]
 
-# Build stage
-FROM development AS build
+ARG BUILD_ENV=production
+ARG VITE_API_URL=""
+ENV VITE_API_URL=${VITE_API_URL}
+
+COPY package*.json ./
+RUN npm install --no-audit --no-fund
+
+COPY . .
 RUN npm run build
 
-# Production stage
-FROM nginx:alpine AS production
-COPY --from=build /app/build /usr/share/nginx/html
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+
+# ---------- API build ----------
+FROM node:20-slim AS api-build
+WORKDIR /app/api
+
+COPY api/package*.json ./
+RUN npm install --no-audit --no-fund
+COPY api .
+RUN npm run build
+
+
+# ---------- Runtime ----------
+FROM node:20-slim AS runtime
+ARG BUILD_ENV=production
+ARG APP_CHECK_ENFORCE=true
+ENV NODE_ENV=${BUILD_ENV}
+ENV APP_CHECK_ENFORCE=${APP_CHECK_ENFORCE}
+ENV PORT=3001
+WORKDIR /app/api
+
+COPY --from=frontend-build /app/build /app/api/build
+
+COPY api/package*.json ./
+RUN npm install --omit=dev --no-audit --no-fund
+
+COPY --from=api-build /app/api/dist ./dist
+
+EXPOSE 3001
+CMD ["node", "dist/index.js"]

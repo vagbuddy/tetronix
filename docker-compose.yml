@@ -1,37 +1,18 @@
 services:
-  # Backend API (uses Firestore, no local DB needed)
-  api:
-    build:
-      context: ./api
-      dockerfile: Dockerfile
-    ports:
-      - "3001:3001"
-    environment:
-      - NODE_ENV=development
-      - PORT=3001
-      - GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json
-      - DEBUG_LOGS=true
-    volumes:
-      - ./api:/app
-      - ./service-account.json:/app/service-account.json:ro
-      - /app/node_modules
-    command: npm run dev
-
-  # Frontend App
-  app:
-    working_dir: /app
+  web:
     build:
       context: .
       dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
+      args:
+        - VITE_API_URL=
+        - BUILD_ENV=production
+        - APP_CHECK_ENFORCE=true
     environment:
-      - NODE_ENV=development
-      - CHOKIDAR_USEPOLLING=true
-      - VITE_API_URL=http://localhost:3001
-    command: sh -c "apk add --no-cache npm && npm install && npm start"
-    depends_on:
-      - api
+      - NODE_ENV=production
+      - PORT=3001
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json
+      - APP_CHECK_ENFORCE=true
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./service-account.json:/app/service-account.json:ro
