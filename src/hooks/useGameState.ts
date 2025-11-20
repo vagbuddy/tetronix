@@ -558,11 +558,27 @@ export const useGameState = () => {
 
   const setDifficulty = useCallback((difficulty: Difficulty) => {
     setPendingSeedVerification(null);
+    dispatch({ type: "SET_DIFFICULTY", difficulty });
     if (startGamePendingRef.current) return;
     startGamePendingRef.current = true;
     (async () => {
+      // Configurable timeout: window.tetronixStartGameTimeoutMs, env, or 5000ms default
+      const timeoutMs =
+        (typeof window !== "undefined" &&
+          (window as any).tetronixStartGameTimeoutMs) ||
+        Number(import.meta.env.VITE_START_GAME_TIMEOUT_MS) ||
+        5000;
+      let res: any = { ok: false, reason: "timeout" };
       try {
-        const res = await startGame();
+        res = await Promise.race([
+          startGame(),
+          new Promise((resolve) =>
+            setTimeout(
+              () => resolve({ ok: false, reason: "timeout" }),
+              timeoutMs
+            )
+          ),
+        ]);
         if ((res as any)?.seed != null) {
           dispatch({
             type: "SET_DIFFICULTY_WITH_SEED",
@@ -570,8 +586,6 @@ export const useGameState = () => {
             seed: (res as any).seed,
             seedFromServer: true,
           });
-        } else {
-          dispatch({ type: "SET_DIFFICULTY", difficulty });
         }
       } finally {
         startGamePendingRef.current = false;
@@ -579,8 +593,6 @@ export const useGameState = () => {
     })();
   }, []);
 
-  // Re-verify saved seeds that were issued by the server but lacked the flag
-  // (e.g., because the initial verification attempt happened offline).
   useEffect(() => {
     if (
       pendingSeedVerification == null ||
