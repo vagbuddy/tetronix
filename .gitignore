@@ -7,8 +7,9 @@ node_modules/
 /coverage/
 
 # production build output
+# ignore any build output `dist` folders anywhere in the repo
 /build/
-/dist/
+dist/
 /out/
 
 # environment files
