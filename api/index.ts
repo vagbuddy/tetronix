@@ -139,16 +139,13 @@ app.get("/health", async (_req: Request, res: Response) => {
 app.post("/api/startGame", async (req: Request, res: Response) => {
   try {
     const { uid } = req.body;
-
     if (!uid || typeof uid !== "string") {
       return res
         .status(400)
         .json({ error: "uid is required and must be a string" });
     }
-
     // Generate a new seed
     const seed = generateSeedForUser(uid);
-
     // Store in Firestore seeds collection
     await db.collection("seeds").doc(`${uid}_${seed}`).set({
       uid,
@@ -156,7 +153,6 @@ app.post("/api/startGame", async (req: Request, res: Response) => {
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       used: false,
     });
-
     if (DEBUG_LOGS) {
       console.log(
         JSON.stringify({
@@ -170,7 +166,17 @@ app.post("/api/startGame", async (req: Request, res: Response) => {
         })
       );
     }
-
+    // Trigger leaderboard recalculation in background (non-blocking)
+    try {
+      require("./leaderboardService").processGames?.();
+    } catch (err) {
+      if (DEBUG_LOGS) {
+        console.error(
+          "Failed to trigger leaderboardService in background:",
+          err
+        );
+      }
+    }
     res.json({ seed });
   } catch (error: any) {
     console.error("Error generating seed:", error);
@@ -185,18 +191,14 @@ app.post("/api/submitGame", async (req: Request, res: Response) => {
   try {
     const { uid, seed, score, difficulty, name, playedSeconds, moves, locale } =
       req.body;
-
     if (!uid || seed === undefined || score === undefined) {
       return res
         .status(400)
         .json({ error: "uid, seed, and score are required" });
     }
-
     const seedDocId = `${uid}_${seed}`;
-
     // Verify seed exists and hasn't been used
     const seedDoc = await db.collection("seeds").doc(seedDocId).get();
-
     if (!seedDoc.exists) {
       return res.status(400).json({
         ok: false,
@@ -204,7 +206,6 @@ app.post("/api/submitGame", async (req: Request, res: Response) => {
         reason: "seed_not_found",
       });
     }
-
     if (seedDoc.data()?.used) {
       return res.status(400).json({
         ok: false,
@@ -212,14 +213,13 @@ app.post("/api/submitGame", async (req: Request, res: Response) => {
         reason: "seed_already_used",
       });
     }
-
     if (DEBUG_LOGS) {
       console.log(
         JSON.stringify({
           ts: new Date().toISOString(),
           reqId: (req as any).requestId,
           route: "submitGame",
-          action: "validating_seed",
+          action: "storing_result",
           uid,
           seed,
           score,
@@ -230,7 +230,6 @@ app.post("/api/submitGame", async (req: Request, res: Response) => {
         })
       );
     }
-
     // Use Firestore transaction to ensure atomicity
     await db.runTransaction(async (transaction) => {
       // Mark seed as used
@@ -238,9 +237,8 @@ app.post("/api/submitGame", async (req: Request, res: Response) => {
         used: true,
         usedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-
-      // Store game in leaderboard (matching your existing Firestore structure)
-      transaction.set(db.collection("leaderboard").doc(seedDocId), {
+      // Store game in results (raw, unvalidated)
+      transaction.set(db.collection("results").doc(seedDocId), {
         uid,
         seed,
         name: (name || "Player").slice(0, 24),
@@ -252,14 +250,13 @@ app.post("/api/submitGame", async (req: Request, res: Response) => {
         locale: locale || null,
       });
     });
-
     if (DEBUG_LOGS) {
       console.log(
         JSON.stringify({
           ts: new Date().toISOString(),
           reqId: (req as any).requestId,
           route: "submitGame",
-          action: "write_committed",
+          action: "result_stored",
           uid,
           seed,
           seedDocId,
@@ -269,7 +266,6 @@ app.post("/api/submitGame", async (req: Request, res: Response) => {
         })
       );
     }
-
     res.json({ ok: true });
   } catch (error: any) {
     console.error("Error submitting game:", error);
