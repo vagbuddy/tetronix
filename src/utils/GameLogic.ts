@@ -305,7 +305,7 @@ export const createEmptyGrid = (): Cell[][] => {
     );
 };
 
-import { type RngState, nextInt } from "./prng";
+import { type RngState, nextInt } from "../../shared/prng";
 
 export const createRandomPiece = (
   difficulty: Difficulty,

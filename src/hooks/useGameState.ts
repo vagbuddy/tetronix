@@ -30,7 +30,7 @@ import {
   calculateScore,
   canPlaceAnyPiece,
 } from "../utils/GameLogic";
-import { randomSeed, type RngState } from "../utils/prng";
+import { randomSeed, type RngState } from "../../shared/prng";
 import { startGame, verifySeed } from "../utils/leaderboard";
 
 const DIFFICULTY_KEY = "tetronix:difficulty";

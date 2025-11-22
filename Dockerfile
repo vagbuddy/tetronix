@@ -20,6 +20,8 @@ WORKDIR /app/api
 COPY api/package*.json ./
 RUN npm install --no-audit --no-fund
 COPY api .
+# Copy shared code into the build context so the API tsc can import from ../shared
+COPY shared ../shared
 RUN npm run build
 
 
