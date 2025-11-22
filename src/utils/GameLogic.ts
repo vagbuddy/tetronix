@@ -623,29 +623,7 @@ export const clearSudokuBlocks = (
   return newGrid;
 };
 
-export const calculateScore = (
-  rowsCleared: number,
-  colsCleared: number,
-  sudokuBlocksCleared: number
-): number => {
-  // Base score for each type of clear
-  const rowScore = rowsCleared * 100;
-  const colScore = colsCleared * 100;
-  const blockScore = sudokuBlocksCleared * 500;
-
-  const baseScore = rowScore + colScore + blockScore;
-
-  // Calculate combo multiplier based on different types cleared simultaneously
-  let clearTypes = 0;
-  if (rowsCleared > 0) clearTypes++;
-  if (colsCleared > 0) clearTypes++;
-  if (sudokuBlocksCleared > 0) clearTypes++;
-
-  // Multiplier: 1x for single type, 2x for two types, 3x for all three types
-  const multiplier = clearTypes;
-
-  return baseScore * multiplier;
-};
+export { calculateScore } from "../../shared/game";
 
 export const getGridPositionFromMouse = (
   mouseX: number,

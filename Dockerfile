@@ -42,4 +42,4 @@ RUN npm install --omit=dev --no-audit --no-fund
 COPY --from=api-build /app/api/dist ./dist
 
 EXPOSE 3001
-CMD ["node", "dist/index.js"]
+CMD ["node", "dist/api/index.js"]

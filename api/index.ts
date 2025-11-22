@@ -3,9 +3,11 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import path from "path";
+import fs from "fs";
 import { fileURLToPath } from "url";
 import admin from "firebase-admin";
 import { generateSeedForUser } from "./utils/prng.js";
+import { triggerProcessGames } from "./leaderboardServiceWrapper.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -166,9 +168,18 @@ app.post("/api/startGame", async (req: Request, res: Response) => {
         })
       );
     }
-    // Trigger leaderboard recalculation in background (non-blocking)
+    // Trigger leaderboard recalculation in background (non-blocking).
     try {
-      require("./leaderboardService").processGames?.();
+      if (DEBUG_LOGS)
+        console.log("Triggering leaderboardService.processGames()");
+      triggerProcessGames()
+        .then(() => {
+          if (DEBUG_LOGS)
+            console.log("leaderboardService.processGames completed");
+        })
+        .catch((err: any) => {
+          console.error("leaderboardService.processGames error:", err);
+        });
     } catch (err) {
       if (DEBUG_LOGS) {
         console.error(
@@ -349,7 +360,17 @@ app.post("/api/verifySeed", async (req: Request, res: Response) => {
 
 // Serve static frontend files in production
 if (process.env.NODE_ENV === "production") {
-  const buildPath = path.join(__dirname, "../build");
+  // The frontend `build` may be copied to different locations depending on
+  // how the project is built / where tsc emitted files. Try a set of
+  // candidate locations and pick the first that exists.
+  const buildCandidates = [
+    path.join(__dirname, "../build"), // emitted when rootDir = api
+    path.join(__dirname, "../../build"), // emitted when dist contains api/ nested
+    path.join(process.cwd(), "build"), // runtime working dir build
+  ];
+
+  const buildPath =
+    buildCandidates.find((p) => fs.existsSync(p)) || buildCandidates[0];
   app.use(express.static(buildPath));
 
   // All non-API routes serve the React app

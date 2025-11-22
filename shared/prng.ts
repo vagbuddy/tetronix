@@ -57,6 +57,13 @@ export const nextInt = (
   return { state: s, value: Math.floor(value * maxExclusive) };
 };
 
+// Helper: deterministic seed generator for server-side use
+export const generateSeedForUser = (uid: string): number => {
+  const timestamp = Date.now();
+  const combined = `${uid}_${timestamp}_${Math.random()}`;
+  return seedFromString(combined);
+};
+
 export default {
   seedFromString,
   randomSeed,
@@ -64,4 +71,5 @@ export default {
   nextFloat,
   nextInt,
   clampUint32,
+  generateSeedForUser,
 };
