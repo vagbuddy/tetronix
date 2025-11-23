@@ -464,11 +464,14 @@ app.post("/api/verifySeed", async (req: Request, res: Response) => {
 
 // Admin Feature Flag
 const rawEnableAdmin = process.env.ENABLE_ADMIN || "false";
+const adminPassword = process.env.ADMIN_PASSWORD;
 const ENABLE_ADMIN =
-  String(rawEnableAdmin).trim() === "true" ||
-  String(rawEnableAdmin).trim() === "1";
+  (String(rawEnableAdmin).trim() === "true" ||
+  String(rawEnableAdmin).trim() === "1") &&
+  !!adminPassword &&
+  adminPassword.trim().length > 0;
 
-console.log(`[Config] ENABLE_ADMIN raw: '${rawEnableAdmin}', parsed: ${ENABLE_ADMIN}`);
+console.log(`[Config] ENABLE_ADMIN raw: '${rawEnableAdmin}', hasPassword: ${!!adminPassword}, parsed: ${ENABLE_ADMIN}`);
 
 if (ENABLE_ADMIN) {
   // Admin Middleware

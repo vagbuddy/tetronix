@@ -31,9 +31,11 @@ RUN npm run build
 FROM node:20-slim AS runtime
 ARG BUILD_ENV=production
 ARG APP_CHECK_ENFORCE=true
+# Allow overriding the listening port at build time
+ARG PORT=80
 ENV NODE_ENV=${BUILD_ENV}
 ENV APP_CHECK_ENFORCE=${APP_CHECK_ENFORCE}
-ENV PORT=80
+ENV PORT=${PORT}
 WORKDIR /app/api
 
 COPY --from=frontend-build /app/build /app/api/build
@@ -43,5 +45,5 @@ RUN npm install --omit=dev --no-audit --no-fund
 
 COPY --from=api-build /app/api/dist ./dist
 
-EXPOSE 80
+EXPOSE ${PORT}
 CMD ["node", "dist/api/index.js"]

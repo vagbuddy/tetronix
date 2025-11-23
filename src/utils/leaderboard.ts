@@ -39,12 +39,28 @@ const ensureInit = () => {
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
   } as const;
+  
+  console.log("[Leaderboard] Init config check:", {
+    hasApiKey: !!cfg.apiKey,
+    hasAuthDomain: !!cfg.authDomain,
+    hasProjectId: !!cfg.projectId,
+    apiKeyLen: cfg.apiKey?.length
+  });
+
   if (!cfg.apiKey || !cfg.authDomain || !cfg.projectId) {
+    console.error("[Leaderboard] Missing Firebase config keys");
     // Not configured; operate in no-op mode to avoid crashes in local/dev without env vars
     return { app: null, db: null } as any;
   }
-  app = initializeApp(cfg as any);
-  db = getFirestore(app);
+  try {
+    app = initializeApp(cfg as any);
+    db = getFirestore(app);
+    console.log("[Leaderboard] Firebase initialized successfully");
+  } catch (e) {
+    console.error("[Leaderboard] initializeApp failed:", e);
+    return { app: null, db: null } as any;
+  }
+
   // App Check (optional but recommended)
   try {
     const siteKey = (import.meta as any).env.VITE_FIREBASE_RECAPTCHA_SITE_KEY;
@@ -87,7 +103,9 @@ const ensureInit = () => {
   // Auth (anonymous)
   try {
     auth = getAuth(app);
-  } catch {}
+  } catch (e) {
+    console.error("[Leaderboard] getAuth failed:", e);
+  }
   // Functions
   try {
     functions = getFunctions(app);
@@ -115,15 +133,22 @@ const ensureInit = () => {
 // Ensure anonymous sign-in and return UID
 const ensureAnonAuth = async (): Promise<string | null> => {
   ensureInit();
-  if (!auth) return null;
+  if (!auth) {
+    console.error("[Leaderboard] ensureAnonAuth: auth instance is null");
+    return null;
+  }
   if (auth.currentUser) return auth.currentUser.uid;
   try {
+    console.log("[Leaderboard] Attempting signInAnonymously...");
     const res = await signInAnonymously(auth);
+    console.log("[Leaderboard] signInAnonymously success, uid:", res.user.uid);
     return res.user.uid;
-  } catch {
+  } catch (e: any) {
+    console.error("[Leaderboard] signInAnonymously failed:", e.code, e.message);
     return await new Promise<string | null>((resolve) => {
       const unsub = onAuthStateChanged(auth!, (u) => {
         unsub();
+        console.log("[Leaderboard] onAuthStateChanged:", u?.uid);
         resolve(u?.uid ?? null);
       });
     });
@@ -186,6 +211,10 @@ export const submitGame = async (payload: SubmitGameInput) => {
       headers["X-Firebase-AppCheck"] = appCheckToken;
     }
 
+    if (!uid) {
+      return { ok: false, reason: "no-auth" } as any;
+    }
+
     const resp = await fetch(url, {
       method: "POST",
       headers,
@@ -232,6 +261,10 @@ export const startGame = async (): Promise<
     const headers: HeadersInit = { "Content-Type": "application/json" };
     if (appCheckToken) {
       headers["X-Firebase-AppCheck"] = appCheckToken;
+    }
+
+    if (!uid) {
+      return { ok: false, reason: "no-auth" } as any;
     }
 
     const resp = await fetch(url, {
