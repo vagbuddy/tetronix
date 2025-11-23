@@ -178,9 +178,7 @@ export const submitGame = async (payload: SubmitGameInput) => {
   const appCheckToken = await getAppCheckToken();
 
   try {
-    const apiUrl =
-      import.meta.env.VITE_API_URL ||
-      (import.meta.env.DEV ? "http://localhost:3001" : "");
+    const apiUrl = import.meta.env.VITE_API_URL || "";
     const url = `${apiUrl}/api/submitGame`;
 
     const headers: HeadersInit = { "Content-Type": "application/json" };
@@ -228,9 +226,7 @@ export const startGame = async (): Promise<
   const uid = await ensureAnonAuth();
   const appCheckToken = await getAppCheckToken();
   try {
-    const apiUrl =
-      import.meta.env.VITE_API_URL ||
-      (import.meta.env.DEV ? "http://localhost:3001" : "");
+    const apiUrl = import.meta.env.VITE_API_URL || "";
     const url = `${apiUrl}/api/startGame`;
 
     const headers: HeadersInit = { "Content-Type": "application/json" };
@@ -271,9 +267,7 @@ export const verifySeed = async (
   }
 
   try {
-    const apiUrl =
-      import.meta.env.VITE_API_URL ||
-      (import.meta.env.DEV ? "http://localhost:3001" : "");
+    const apiUrl = import.meta.env.VITE_API_URL || "";
     const url = `${apiUrl}/api/verifySeed`;
 
     const headers: HeadersInit = { "Content-Type": "application/json" };
@@ -304,9 +298,7 @@ export const verifySeed = async (
 export const getTopScores = async (difficulty?: Difficulty, limit = 5) => {
   const appCheckToken = await getAppCheckToken();
   try {
-    const apiUrl =
-      import.meta.env.VITE_API_URL ||
-      (import.meta.env.DEV ? "http://localhost:3001" : "");
+    const apiUrl = import.meta.env.VITE_API_URL || "";
     const params = new URLSearchParams();
     if (difficulty) params.append("difficulty", difficulty);
     params.append("limit", String(limit));

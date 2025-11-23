@@ -5,6 +5,8 @@ WORKDIR /app
 ARG BUILD_ENV=production
 ARG VITE_API_URL=""
 ENV VITE_API_URL=${VITE_API_URL}
+ARG VITE_ENABLE_ADMIN="false"
+ENV VITE_ENABLE_ADMIN=${VITE_ENABLE_ADMIN}
 
 COPY package*.json ./
 RUN npm install --no-audit --no-fund
@@ -31,7 +33,7 @@ ARG BUILD_ENV=production
 ARG APP_CHECK_ENFORCE=true
 ENV NODE_ENV=${BUILD_ENV}
 ENV APP_CHECK_ENFORCE=${APP_CHECK_ENFORCE}
-ENV PORT=3001
+ENV PORT=80
 WORKDIR /app/api
 
 COPY --from=frontend-build /app/build /app/api/build
@@ -41,5 +43,5 @@ RUN npm install --omit=dev --no-audit --no-fund
 
 COPY --from=api-build /app/api/dist ./dist
 
-EXPOSE 3001
+EXPOSE 80
 CMD ["node", "dist/api/index.js"]

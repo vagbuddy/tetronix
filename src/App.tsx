@@ -1,11 +1,22 @@
+import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Game from "./components/Game";
+import AdminDashboard from "./components/Admin/AdminDashboard";
 import "./App.css";
 
 function App() {
+  const enableAdmin =
+    import.meta.env.VITE_ENABLE_ADMIN === "true" ||
+    import.meta.env.VITE_ENABLE_ADMIN === "1";
+
   return (
-    <div className="App">
-      <Game />
-    </div>
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/" element={<Game />} />
+          {enableAdmin && <Route path="/admin" element={<AdminDashboard />} />}
+        </Routes>
+      </div>
+    </Router>
   );
 }
 

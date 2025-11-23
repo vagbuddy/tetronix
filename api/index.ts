@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 import admin from "firebase-admin";
 import { generateSeedForUser } from "./utils/prng.js";
 import { triggerProcessGames } from "./leaderboardServiceWrapper.js";
+import { exec } from "child_process";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -104,11 +105,35 @@ const appCheckVerification = async (
     return next();
   }
 
-  // Allow disabling App Check verification in non-production for local dev
-  // Set APP_CHECK_ENFORCE=true in the environment to force verification
+  // Skip App Check for Admin routes (protected by password)
+  if (req.path.startsWith("/admin")) {
+    return next();
+  }
+
+  // Determine whether to enforce App Check.
+  // Behavior:
+  // - If APP_CHECK_ENFORCE is explicitly set in the environment, respect it ("true"/"false").
+  // - Otherwise, default to enforcing when NODE_ENV === 'production'.
   const enforceAppCheck =
-    process.env.APP_CHECK_ENFORCE === "true" ||
-    process.env.NODE_ENV === "production";
+    typeof process.env.APP_CHECK_ENFORCE !== "undefined"
+      ? process.env.APP_CHECK_ENFORCE === "true"
+      : process.env.NODE_ENV === "production";
+
+  if (DEBUG_LOGS) {
+    try {
+      console.log(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          reqId: (req as any).requestId,
+          route: req.path,
+          enforceAppCheck: enforceAppCheck,
+          APP_CHECK_ENFORCE: process.env.APP_CHECK_ENFORCE,
+          NODE_ENV: process.env.NODE_ENV,
+        })
+      );
+    } catch {}
+  }
+
   if (!enforceAppCheck) {
     return next();
   }
@@ -437,6 +462,61 @@ app.post("/api/verifySeed", async (req: Request, res: Response) => {
   }
 });
 
+// Admin Feature Flag
+const rawEnableAdmin = process.env.ENABLE_ADMIN || "false";
+const ENABLE_ADMIN =
+  String(rawEnableAdmin).trim() === "true" ||
+  String(rawEnableAdmin).trim() === "1";
+
+console.log(`[Config] ENABLE_ADMIN raw: '${rawEnableAdmin}', parsed: ${ENABLE_ADMIN}`);
+
+if (ENABLE_ADMIN) {
+  // Admin Middleware
+  const requireAdmin = (req: Request, res: Response, next: () => void) => {
+    const password = req.headers["x-admin-password"];
+    const adminPassword = process.env.ADMIN_PASSWORD;
+
+    if (password === adminPassword) {
+      next();
+    } else {
+      res.status(401).json({ error: "Unauthorized" });
+    }
+  };
+
+  // Admin Endpoints
+  app.get("/api/admin/check", requireAdmin, (_req, res) => {
+    res.json({ status: "ok" });
+  });
+
+  app.get("/api/admin/logs", requireAdmin, (_req, res) => {
+    res.json({ logs: logBuffer });
+  });
+
+  app.get("/api/admin/env", requireAdmin, (_req, res) => {
+    // Filter out sensitive keys if needed, but for now show all as requested
+    res.json({ env: process.env });
+  });
+
+  app.post("/api/admin/exec", requireAdmin, (req, res) => {
+    const { command } = req.body;
+    if (!command) return res.status(400).json({ error: "Command required" });
+
+    exec(
+      command,
+      { cwd: process.cwd() },
+      (error: any, stdout: string, stderr: string) => {
+        res.json({
+          output: stdout,
+          error: stderr || (error ? error.message : null),
+        });
+      }
+    );
+  });
+  console.log("Admin Dashboard endpoints ENABLED");
+} else {
+  console.log("Admin Dashboard endpoints DISABLED");
+}
+
 // Serve static frontend files in production
 if (process.env.NODE_ENV === "production") {
   // The frontend `build` may be copied to different locations depending on
@@ -457,6 +537,39 @@ if (process.env.NODE_ENV === "production") {
     res.sendFile(path.join(buildPath, "index.html"));
   });
 }
+
+// Log Capture for Admin Dashboard
+const LOG_BUFFER_SIZE = 1000;
+const logBuffer: string[] = [];
+
+const captureLog = (msg: string) => {
+  logBuffer.push(msg);
+  if (logBuffer.length > LOG_BUFFER_SIZE) {
+    logBuffer.shift();
+  }
+};
+
+// Hook into console.log and console.error
+const originalLog = console.log;
+const originalError = console.error;
+
+console.log = (...args) => {
+  const msg = args
+    .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
+    .join(" ");
+  captureLog(`[LOG] ${new Date().toISOString()} ${msg}`);
+  originalLog.apply(console, args);
+};
+
+console.error = (...args) => {
+  const msg = args
+    .map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
+    .join(" ");
+  captureLog(`[ERR] ${new Date().toISOString()} ${msg}`);
+  originalError.apply(console, args);
+};
+
+
 
 app.listen(PORT, () => {
   console.log(`Tetronix API Server running on port ${PORT}`);
