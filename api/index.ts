@@ -16,6 +16,8 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const DEBUG_LOGS =
   process.env.DEBUG_LOGS === "1" || process.env.DEBUG_LOGS === "true";
+const DEBUG_SEEDS =
+  process.env.DEBUG_SEEDS === "1" || process.env.DEBUG_SEEDS === "true";
 
 // Lightweight request id generator
 const genReqId = () => Math.random().toString(36).slice(2, 10);
@@ -146,8 +148,26 @@ app.post("/api/startGame", async (req: Request, res: Response) => {
         .status(400)
         .json({ error: "uid is required and must be a string" });
     }
-    // Generate a new seed
-    const seed = generateSeedForUser(uid);
+    // Generate a new seed. Default to normal generator; DEBUG_SEEDS may override.
+    let seed = generateSeedForUser(uid);
+    // DEBUG_SEEDS: when enabled, issue easy-to-inspect seeds for debugging
+    // e.g. 111111111, 222222222, ... 999999999 in sequence (stored in Firestore)
+    if (DEBUG_SEEDS) {
+      const counterDoc = db.collection("_debug").doc("seedCounter");
+      await db.runTransaction(async (tx) => {
+        const snap = await tx.get(counterDoc);
+        let next = 1;
+        if (snap.exists && typeof snap.data()?.nextDigit === "number") {
+          next = snap.data()!.nextDigit as number;
+        }
+        // compute seed as repeated digit (9 digits)
+        const seedStr = String(next).repeat(9);
+        seed = parseInt(seedStr, 10);
+        // increment and wrap 1..9
+        const updated = (next % 9) + 1;
+        tx.set(counterDoc, { nextDigit: updated }, { merge: true });
+      });
+    }
     // Store in Firestore seeds collection
     await db.collection("seeds").doc(`${uid}_${seed}`).set({
       uid,
@@ -188,6 +208,23 @@ app.post("/api/startGame", async (req: Request, res: Response) => {
         );
       }
     }
+    // Log the returned seed (concise JSON) so it's easy to find in logs
+    try {
+      console.log(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          reqId: (req as any).requestId,
+          route: "startGame",
+          action: "seed_returned",
+          uid,
+          seed,
+          docId: `${uid}_${seed}`,
+        })
+      );
+    } catch (e) {
+      // best-effort logging; do not block response
+    }
+
     res.json({ seed });
   } catch (error: any) {
     console.error("Error generating seed:", error);

@@ -12,6 +12,8 @@ services:
       - PORT=3001
       - GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json
       - APP_CHECK_ENFORCE=true
+      - DEBUG_SEEDS=1
+      - DEBUG_LOGS=1
     ports:
       - "3001:3001"
     volumes:

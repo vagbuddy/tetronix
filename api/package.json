@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "tsx watch index.ts",
     "build": "tsc",
+    "test:reconstruct": "node test/reconstruct.test.mjs",
+    "test": "node --test",
     "build:full": "cd .. && npm install && npm run build && cd api && npm install && npm run build",
     "start": "node dist/api/index.js"
   },
