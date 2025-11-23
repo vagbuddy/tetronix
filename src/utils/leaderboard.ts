@@ -48,12 +48,21 @@ const ensureInit = () => {
   // App Check (optional but recommended)
   try {
     const siteKey = (import.meta as any).env.VITE_FIREBASE_RECAPTCHA_SITE_KEY;
-    if (siteKey) {
+    if (!siteKey) {
+      console.debug(
+        "App Check: VITE_FIREBASE_RECAPTCHA_SITE_KEY is not set — App Check will be disabled."
+      );
+    } else {
+      console.debug(
+        "App Check: site key found (first 8 chars):",
+        String(siteKey).slice(0, 8) + "..."
+      );
       if (import.meta.env.DEV) {
         const debugToken = (import.meta as any).env
           .VITE_FIREBASE_APPCHECK_DEBUG_TOKEN;
         if (debugToken) {
           (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken;
+          console.debug("App Check: using debug token in DEV");
         }
       }
       appCheck = initializeAppCheck(app, {
@@ -61,9 +70,16 @@ const ensureInit = () => {
         isTokenAutoRefreshEnabled: true,
       });
       // Force a token request to ensure the key is active.
-      getToken(appCheck).catch((error) => {
-        console.error("Failed to get App Check token:", error);
-      });
+      getToken(appCheck)
+        .then((t) => {
+          console.debug(
+            "App Check: initial token fetched (length):",
+            t?.token ? t.token.length : 0
+          );
+        })
+        .catch((error) => {
+          console.error("Failed to get App Check token:", error);
+        });
     }
   } catch (error) {
     console.error("Error initializing App Check:", error);
