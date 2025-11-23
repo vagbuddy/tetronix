@@ -44,12 +44,29 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [userRank, setUserRank] = useState<number | null>(null);
 
+  const isCooldown = lastSubmitAt
+    ? Date.now() - lastSubmitAt < SUBMIT_COOLDOWN_MS
+    : false;
+
+  const disabledReason = useMemo(() => {
+    if (!name.trim()) return "Name is empty";
+    if (submitting) return "Submitting...";
+    if (submitted) return "Already submitted";
+    if (canSubmit === false) return "canSubmit prop is false (Game not eligible?)";
+    if (isCooldown) return `Cooldown active (${Math.ceil((SUBMIT_COOLDOWN_MS - (Date.now() - (lastSubmitAt || 0))) / 1000)}s remaining)`;
+    return null;
+  }, [name, submitting, submitted, canSubmit, isCooldown, lastSubmitAt, SUBMIT_COOLDOWN_MS]);
+
+  React.useEffect(() => {
+    if (disabledReason) {
+      console.log("[GameOverModal] Submit disabled reason:", disabledReason);
+    }
+  }, [disabledReason]);
+
   const onSubmitScore = async () => {
     if (!name.trim()) return;
-    // UX cooldown: block if last submit within 5 minutes
-    if (lastSubmitAt && Date.now() - lastSubmitAt < SUBMIT_COOLDOWN_MS) {
-      return;
-    }
+    if (isCooldown) return;
+    
     setSubmitting(true);
     try {
       const trimmed = name.trim();
@@ -62,12 +79,12 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
         moves,
         locale: i18n.language,
       });
+      
       if ((res as any)?.ok) {
         saveUsername(trimmed);
         setSubmitted(true);
-        // Fetch leaderboard after submit
+        // ... (existing success logic)
         const top = await getTopScores(difficulty, 5);
-        // Check if user is in top 5
         let found = false;
         let userIdx = -1;
         const userEntry = {
@@ -75,7 +92,6 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
           score,
           difficulty: difficulty ?? "casual",
           playedSeconds,
-          // createdAt: new Date(),
           locale: i18n.language,
         };
         const merged = top.map((entry: any, idx: number) => {
@@ -90,7 +106,6 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
           return entry;
         });
         if (!found) {
-          // Insert user in correct place
           let insertIdx = merged.findIndex((e: any) => score > e.score);
           if (insertIdx === -1 && merged.length < 5) insertIdx = merged.length;
           if (insertIdx === -1) insertIdx = 5;
@@ -100,9 +115,11 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
         setLeaderboard(merged.slice(0, 5));
         setUserRank(userIdx + 1);
         setShowLeaderboard(true);
+      } else {
+        console.error("[GameOverModal] Submit failed:", (res as any)?.reason || "Unknown error");
       }
     } catch (e) {
-      // swallow errors for now; could show a toast
+      console.error("[GameOverModal] Submit exception:", e);
     } finally {
       setSubmitting(false);
     }

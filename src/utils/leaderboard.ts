@@ -40,22 +40,13 @@ const ensureInit = () => {
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
   } as const;
   
-  console.log("[Leaderboard] Init config check:", {
-    hasApiKey: !!cfg.apiKey,
-    hasAuthDomain: !!cfg.authDomain,
-    hasProjectId: !!cfg.projectId,
-    apiKeyLen: cfg.apiKey?.length
-  });
-
   if (!cfg.apiKey || !cfg.authDomain || !cfg.projectId) {
-    console.error("[Leaderboard] Missing Firebase config keys");
     // Not configured; operate in no-op mode to avoid crashes in local/dev without env vars
     return { app: null, db: null } as any;
   }
   try {
     app = initializeApp(cfg as any);
     db = getFirestore(app);
-    console.log("[Leaderboard] Firebase initialized successfully");
   } catch (e) {
     console.error("[Leaderboard] initializeApp failed:", e);
     return { app: null, db: null } as any;
@@ -69,33 +60,17 @@ const ensureInit = () => {
         "App Check: VITE_FIREBASE_RECAPTCHA_SITE_KEY is not set — App Check will be disabled."
       );
     } else {
-      console.debug(
-        "App Check: site key found (first 8 chars):",
-        String(siteKey).slice(0, 8) + "..."
-      );
       if (import.meta.env.DEV) {
         const debugToken = (import.meta as any).env
           .VITE_FIREBASE_APPCHECK_DEBUG_TOKEN;
         if (debugToken) {
           (self as any).FIREBASE_APPCHECK_DEBUG_TOKEN = debugToken;
-          console.debug("App Check: using debug token in DEV");
         }
       }
       appCheck = initializeAppCheck(app, {
         provider: new ReCaptchaV3Provider(siteKey),
         isTokenAutoRefreshEnabled: true,
       });
-      // Force a token request to ensure the key is active.
-      getToken(appCheck)
-        .then((t) => {
-          console.debug(
-            "App Check: initial token fetched (length):",
-            t?.token ? t.token.length : 0
-          );
-        })
-        .catch((error) => {
-          console.error("Failed to get App Check token:", error);
-        });
     }
   } catch (error) {
     console.error("Error initializing App Check:", error);
@@ -133,22 +108,16 @@ const ensureInit = () => {
 // Ensure anonymous sign-in and return UID
 const ensureAnonAuth = async (): Promise<string | null> => {
   ensureInit();
-  if (!auth) {
-    console.error("[Leaderboard] ensureAnonAuth: auth instance is null");
-    return null;
-  }
+  if (!auth) return null;
   if (auth.currentUser) return auth.currentUser.uid;
   try {
-    console.log("[Leaderboard] Attempting signInAnonymously...");
     const res = await signInAnonymously(auth);
-    console.log("[Leaderboard] signInAnonymously success, uid:", res.user.uid);
     return res.user.uid;
   } catch (e: any) {
     console.error("[Leaderboard] signInAnonymously failed:", e.code, e.message);
     return await new Promise<string | null>((resolve) => {
       const unsub = onAuthStateChanged(auth!, (u) => {
         unsub();
-        console.log("[Leaderboard] onAuthStateChanged:", u?.uid);
         resolve(u?.uid ?? null);
       });
     });
