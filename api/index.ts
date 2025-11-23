@@ -52,7 +52,24 @@ app.use(
     contentSecurityPolicy: false, // Allow inline scripts for React
   })
 );
-app.use(cors());
+// Explicit CORS options to ensure custom headers (like X-Firebase-AppCheck)
+// are allowed in preflight responses. This prevents browsers from silently
+// omitting the header on cross-origin requests when the server does not
+// advertise it.
+const corsOptions = {
+  origin: true,
+  credentials: true,
+  allowedHeaders: [
+    "Content-Type",
+    "X-Firebase-AppCheck",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+  ],
+};
+app.use(cors(corsOptions));
+// Respond to preflight requests with the same CORS policy
+app.options("*", cors(corsOptions));
 app.use(express.json());
 // Attach a request id early
 app.use((req, _res, next) => {
@@ -97,6 +114,31 @@ const appCheckVerification = async (
   }
 
   const appCheckToken = req.header("X-Firebase-AppCheck");
+
+  // Log presence/absence of the App Check header for debugging (masked).
+  if (DEBUG_LOGS) {
+    const tokenPresent = !!appCheckToken;
+    const mask = (t?: string | null) => {
+      if (!t) return null;
+      if (t.length <= 8) return "****";
+      return `${t.slice(0, 4)}...${t.slice(-4)}`;
+    };
+    try {
+      console.log(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          reqId: (req as any).requestId,
+          route: req.path,
+          method: req.method,
+          appCheckHeader: tokenPresent,
+          tokenMasked: mask(appCheckToken),
+        })
+      );
+    } catch (e) {
+      // best-effort logging
+      console.error("App Check debug log failed:", e);
+    }
+  }
 
   // If running in a development environment, you might want to bypass this check.
   // IMPORTANT: Ensure this is not active in production.

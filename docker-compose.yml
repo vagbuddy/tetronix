@@ -5,6 +5,12 @@ services:
       dockerfile: Dockerfile
       args:
         - VITE_API_URL=
+        - VITE_FIREBASE_API_KEY=
+        - VITE_FIREBASE_AUTH_DOMAIN=
+        - VITE_FIREBASE_PROJECT_ID=
+        - VITE_FIREBASE_APP_ID=
+        - VITE_FIREBASE_RECAPTCHA_SITE_KEY=
+        - VITE_FIREBASE_APPCHECK_DEBUG_TOKEN=
         - BUILD_ENV=production
         - APP_CHECK_ENFORCE=true
     environment:
@@ -12,8 +18,15 @@ services:
       - PORT=3001
       - GOOGLE_APPLICATION_CREDENTIALS=/app/service-account.json
       - APP_CHECK_ENFORCE=true
-      - DEBUG_SEEDS=1
-      - DEBUG_LOGS=1
+      - DEBUG_SEEDS=0
+      - DEBUG_LOGS=0
+      - VITE_API_URL
+      - VITE_FIREBASE_API_KEY
+      - VITE_FIREBASE_AUTH_DOMAIN
+      - VITE_FIREBASE_PROJECT_ID
+      - VITE_FIREBASE_APP_ID
+      - VITE_FIREBASE_RECAPTCHA_SITE_KEY
+      - VITE_FIREBASE_APPCHECK_DEBUG_TOKEN
     ports:
       - "3001:3001"
     volumes:
