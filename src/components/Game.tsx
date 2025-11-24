@@ -13,6 +13,7 @@ import SettingsModal from "./SettingsModal";
 import "./Game.css";
 import { isMobile } from "../utils/DeviceDetection";
 import type { Difficulty } from "../types/GameTypes";
+import { CELL_SIZE } from "../utils/GameLogic";
 
 const Game: React.FC = () => {
   const { t } = useTranslation();
@@ -22,6 +23,7 @@ const Game: React.FC = () => {
   const [pendingDifficulty, setPendingDifficulty] = useState<Difficulty | null>(
     null
   );
+  const [currentCellSize, setCurrentCellSize] = useState<number>(CELL_SIZE);
   const {
     state,
     selectPiece,
@@ -204,6 +206,7 @@ const Game: React.FC = () => {
             clearingCells={state.clearingCells}
             onPiecePlace={placePiece}
             onPieceDeselect={deselectPiece}
+            onCellSizeChange={setCurrentCellSize}
           />
 
           <PieceSelection
@@ -217,6 +220,7 @@ const Game: React.FC = () => {
             rotationEnabled={rotationEnabled}
             flipEnabled={flipEnabled}
             score={state.score}
+            cellSize={currentCellSize}
           />
         </div>
 

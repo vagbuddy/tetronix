@@ -21,6 +21,8 @@ interface GameBoardProps {
   clearingCells?: { x: number; y: number; color?: string }[];
   onPiecePlace: (position: { x: number; y: number }, pieceId?: string) => void;
   onPieceDeselect: () => void;
+  onCellSizeChange?: (size: number) => void;
+  cellSize?: number;
 }
 
 const GameBoard: React.FC<GameBoardProps> = ({
@@ -30,6 +32,8 @@ const GameBoard: React.FC<GameBoardProps> = ({
   clearingCells,
   onPiecePlace,
   onPieceDeselect,
+  onCellSizeChange,
+  cellSize: propCellSize,
 }) => {
   const boardRef = useRef<HTMLDivElement>(null);
   const [hoverPosition, setHoverPosition] = useState<{
@@ -37,7 +41,11 @@ const GameBoard: React.FC<GameBoardProps> = ({
     y: number;
   } | null>(null);
   const [draggedPiece, setDraggedPiece] = useState<TetrisPiece | null>(null);
-  const [cellSize, setCellSize] = useState<number>(CELL_SIZE);
+  // Use prop cellSize if available, otherwise fall back to local state (or constant)
+  // For the initial render, we might not have a calculated size yet if we rely solely on parent.
+  // However, we can just use the prop if provided.
+  const cellSize = propCellSize || CELL_SIZE;
+  
   const [hoverAnchor, setHoverAnchor] = useState<Anchor | null>(null);
   const [isExternalDrag, setIsExternalDrag] = useState<boolean>(false);
   const [suppressClickUntil, setSuppressClickUntil] = useState<number>(0);
@@ -141,7 +149,10 @@ const GameBoard: React.FC<GameBoardProps> = ({
         effectiveAvailable
       );
       const calculated = Math.max(14, Math.floor(maxBoardWidth / GRID_WIDTH));
-      setCellSize(calculated);
+      
+      if (onCellSizeChange) {
+        onCellSizeChange(calculated);
+      }
     };
 
     updateCellSize();

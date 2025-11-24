@@ -32,6 +32,7 @@ interface PieceSelectionProps {
   rotationEnabled: boolean;
   flipEnabled: boolean;
   score: number;
+  cellSize?: number;
 }
 
 // Draggable piece component
@@ -432,6 +433,7 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
   rotationEnabled,
   flipEnabled,
   score,
+  cellSize: propCellSize,
 }) => {
   const { t } = useTranslation();
   const [draggedPiece, setDraggedPiece] = useState<TetrisPiece | null>(null);
@@ -440,6 +442,8 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
   );
   const [dragAnchor, setDragAnchor] = useState<Anchor | null>(null);
   const dragPreviewRef = useRef<HTMLDivElement>(null);
+
+  const currentCellSize = propCellSize || CELL_SIZE;
 
   const renderDragPreview = () => {
     if (!draggedPiece || !pointerPos || typeof document === "undefined")
@@ -456,12 +460,12 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
           position: "fixed",
           left:
             pointerPos.x -
-            ((dragAnchor?.col ?? defaultAnchorCol) + 0.5) * CELL_SIZE,
+            ((dragAnchor?.col ?? defaultAnchorCol) + 0.5) * currentCellSize,
           top:
             pointerPos.y -
-            ((dragAnchor?.row ?? defaultAnchorRow) + 0.5) * CELL_SIZE,
-          width: shapeWidth * CELL_SIZE,
-          height: shapeHeight * CELL_SIZE,
+            ((dragAnchor?.row ?? defaultAnchorRow) + 0.5) * currentCellSize,
+          width: shapeWidth * currentCellSize,
+          height: shapeHeight * currentCellSize,
           pointerEvents: "none",
           zIndex: 99999,
         }}
@@ -482,10 +486,10 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
                 }`}
                 style={{
                   position: "absolute",
-                  left: colIndex * CELL_SIZE,
-                  top: rowIndex * CELL_SIZE,
-                  width: CELL_SIZE,
-                  height: CELL_SIZE,
+                  left: colIndex * currentCellSize,
+                  top: rowIndex * currentCellSize,
+                  width: currentCellSize,
+                  height: currentCellSize,
                   backgroundColor: cell ? draggedPiece.color : "transparent",
                   border: cell ? "1px solid #444" : "none",
                   opacity: 0.85,
