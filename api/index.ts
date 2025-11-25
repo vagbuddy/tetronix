@@ -412,9 +412,12 @@ app.get("/api/leaderboard", async (req: Request, res: Response) => {
     }
 
     const snapshot = await query.get();
-    const results = snapshot.docs.map((doc) => {
+
+    // Map documents to rows including `uid` so we can deduplicate by user.
+    const rows = snapshot.docs.map((doc) => {
       const data = doc.data();
       return {
+        uid: data.uid || null,
         name: data.name,
         score: data.score,
         difficulty: data.difficulty,
@@ -423,6 +426,33 @@ app.get("/api/leaderboard", async (req: Request, res: Response) => {
         locale: data.locale,
       };
     });
+
+    // Deduplicate by user: prefer `uid` when present, otherwise fall back to `name`.
+    // Keep the best (highest) score per user.
+    const bestByUser = new Map<string, any>();
+    for (const r of rows) {
+      const key = r.uid ? `uid:${r.uid}` : `name:${r.name || ""}`;
+      const prev = bestByUser.get(key);
+      if (!prev || (typeof r.score === "number" && r.score > prev.score)) {
+        bestByUser.set(key, r);
+      }
+    }
+
+    const deduped = Array.from(bestByUser.values()).sort((a, b) => {
+      const as = typeof a.score === "number" ? a.score : 0;
+      const bs = typeof b.score === "number" ? b.score : 0;
+      return bs - as;
+    });
+
+    const results = deduped.slice(0, limitNum).map((r) => ({
+      uid: r.uid,
+      name: r.name,
+      score: r.score,
+      difficulty: r.difficulty,
+      playedSeconds: r.playedSeconds,
+      createdAt: r.createdAt,
+      locale: r.locale,
+    }));
 
     res.json(results);
   } catch (error: any) {
@@ -467,11 +497,13 @@ const rawEnableAdmin = process.env.ENABLE_ADMIN || "false";
 const adminPassword = process.env.ADMIN_PASSWORD;
 const ENABLE_ADMIN =
   (String(rawEnableAdmin).trim() === "true" ||
-  String(rawEnableAdmin).trim() === "1") &&
+    String(rawEnableAdmin).trim() === "1") &&
   !!adminPassword &&
   adminPassword.trim().length > 0;
 
-console.log(`[Config] ENABLE_ADMIN raw: '${rawEnableAdmin}', hasPassword: ${!!adminPassword}, parsed: ${ENABLE_ADMIN}`);
+console.log(
+  `[Config] ENABLE_ADMIN raw: '${rawEnableAdmin}', hasPassword: ${!!adminPassword}, parsed: ${ENABLE_ADMIN}`
+);
 
 if (ENABLE_ADMIN) {
   // Admin Middleware
@@ -571,8 +603,6 @@ console.error = (...args) => {
   captureLog(`[ERR] ${new Date().toISOString()} ${msg}`);
   originalError.apply(console, args);
 };
-
-
 
 app.listen(PORT, () => {
   console.log(`Tetronix API Server running on port ${PORT}`);
