@@ -562,7 +562,7 @@ export const useGameState = () => {
     if (startGamePendingRef.current) return;
     startGamePendingRef.current = true;
     (async () => {
-      // Configurable timeout: window.tetronixStartGameTimeoutMs, env, or 5000ms default
+      // Configurable timeout: window.tetronixStartGameTimeoutMs, env, or 5s default
       const timeoutMs =
         (typeof window !== "undefined" &&
           (window as any).tetronixStartGameTimeoutMs) ||
@@ -686,9 +686,21 @@ export const useGameState = () => {
     }
   }, [state.clearingCells.length]);
 
-  // On first mount, try to request a server-issued seed
+  // On mount, attempt to request a server-issued seed unless:
+  // - a valid seed already exists from the server (`seedFromServer`),
+  // - the game has already started (we check `startTime`, `moveLog`, or score),
+  // - or there is a pending saved seed verification in progress.
+  // We intentionally run this only once on mount (do not add `state` to deps).
   useEffect(() => {
-    if (initialLoadedRef.current) {
+    // If a server seed is already present, or the user has a saved/started game,
+    // don't request a new seed.
+    if (
+      state.seedFromServer ||
+      state.startTime != null ||
+      (Array.isArray(state.moveLog) && state.moveLog.length > 0) ||
+      state.score > 0 ||
+      pendingSeedVerification != null
+    ) {
       return;
     }
 

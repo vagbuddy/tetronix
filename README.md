@@ -98,6 +98,28 @@ VITE_FIREBASE_RECAPTCHA_SITE_KEY=...
 
 ### Firebase setup
 
+## Deploying to Render (notes about Vite/Firebase env)
+
+This project expects some `VITE_` environment variables to be available at build time so Vite can embed them into the client bundle (for example: `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, etc.).
+
+Recommended approach for Render.com:
+
+- In the Render dashboard for your service, open the **Environment** section and add the required `VITE_*` variables as environment variables. These will be available during the build and to the runtime.
+- Do NOT hard-code secrets into the `Dockerfile` or commit them into source control. Use Render's environment variables or your CI's secret storage instead.
+- If you prefer to avoid embedding any secret into the static bundle, consider fetching sensitive config from your backend at runtime instead of during build.
+
+Example (add these keys in Render's Environment Vars):
+
+```
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_APP_ID=...
+VITE_FIREBASE_RECAPTCHA_SITE_KEY=...
+VITE_FIREBASE_APPCHECK_DEBUG_TOKEN=...
+```
+
+If you use BuildKit locally or in CI and want to keep values out of image layers, use BuildKit `--secret` mounts during `docker build` and consume them in build steps. Note that if you embed the values into client-side static files, they will be publicly visible in the final bundle regardless of how you pass them to the build.
 - Enable Anonymous Auth.
 - Create callable function `submitGame` that:
 	- Verifies App Check token (enforce in console) and Auth.

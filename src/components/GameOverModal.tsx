@@ -36,10 +36,9 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const lastSubmitAt = getLastSubmitAt();
-  // Cooldown in ms, from env or default 5 min
+  // Cooldown in ms, from env or default 1 min
   const SUBMIT_COOLDOWN_MS =
-    Number(import.meta.env.VITE_LEADERBOARD_SUBMIT_COOLDOWN_MS) ||
-    5 * 60 * 1000;
+    Number(import.meta.env.VITE_LEADERBOARD_SUBMIT_COOLDOWN_MS) || 60 * 1000;
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [userRank, setUserRank] = useState<number | null>(null);
@@ -52,10 +51,22 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
     if (!name.trim()) return "Name is empty";
     if (submitting) return "Submitting...";
     if (submitted) return "Already submitted";
-    if (canSubmit === false) return "canSubmit prop is false (Game not eligible?)";
-    if (isCooldown) return `Cooldown active (${Math.ceil((SUBMIT_COOLDOWN_MS - (Date.now() - (lastSubmitAt || 0))) / 1000)}s remaining)`;
+    if (canSubmit === false)
+      return "canSubmit prop is false (Game not eligible?)";
+    if (isCooldown)
+      return `Cooldown active (${Math.ceil(
+        (SUBMIT_COOLDOWN_MS - (Date.now() - (lastSubmitAt || 0))) / 1000
+      )}s remaining)`;
     return null;
-  }, [name, submitting, submitted, canSubmit, isCooldown, lastSubmitAt, SUBMIT_COOLDOWN_MS]);
+  }, [
+    name,
+    submitting,
+    submitted,
+    canSubmit,
+    isCooldown,
+    lastSubmitAt,
+    SUBMIT_COOLDOWN_MS,
+  ]);
 
   React.useEffect(() => {
     if (disabledReason) {
@@ -66,7 +77,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   const onSubmitScore = async () => {
     if (!name.trim()) return;
     if (isCooldown) return;
-    
+
     setSubmitting(true);
     try {
       const trimmed = name.trim();
@@ -79,7 +90,7 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
         moves,
         locale: i18n.language,
       });
-      
+
       if ((res as any)?.ok) {
         saveUsername(trimmed);
         setSubmitted(true);
@@ -116,7 +127,10 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
         setUserRank(userIdx + 1);
         setShowLeaderboard(true);
       } else {
-        console.error("[GameOverModal] Submit failed:", (res as any)?.reason || "Unknown error");
+        console.error(
+          "[GameOverModal] Submit failed:",
+          (res as any)?.reason || "Unknown error"
+        );
       }
     } catch (e) {
       console.error("[GameOverModal] Submit exception:", e);
