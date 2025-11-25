@@ -352,7 +352,7 @@ app.post("/api/submitGame", async (req: Request, res: Response) => {
         used: true,
         usedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      // Store game in results (raw, unvalidated)
+      // Store game in results (raw, unvalidated). Include deviceId if provided.
       transaction.set(db.collection("results").doc(seedDocId), {
         uid,
         seed,
@@ -363,6 +363,7 @@ app.post("/api/submitGame", async (req: Request, res: Response) => {
         moves: moves || [],
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         locale: locale || null,
+        deviceId: req.body?.deviceId || null,
       });
     });
     if (DEBUG_LOGS) {

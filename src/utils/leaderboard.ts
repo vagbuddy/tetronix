@@ -39,7 +39,7 @@ const ensureInit = () => {
     projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
     appId: import.meta.env.VITE_FIREBASE_APP_ID,
   } as const;
-  
+
   if (!cfg.apiKey || !cfg.authDomain || !cfg.projectId) {
     // Not configured; operate in no-op mode to avoid crashes in local/dev without env vars
     return { app: null, db: null } as any;
@@ -170,6 +170,16 @@ export type SubmitGameInput = {
 export const submitGame = async (payload: SubmitGameInput) => {
   const uid = await ensureAnonAuth();
   const appCheckToken = await getAppCheckToken();
+  // Device identifier (persistent per browser/profile) to help detect same device
+  // submissions. Non-sensitive.
+  let deviceId: string | null = null;
+  try {
+    // dynamic import to avoid circular deps in some build setups
+    const mod = await import("./deviceId");
+    deviceId = (mod.getDeviceId && mod.getDeviceId()) || null;
+  } catch {
+    deviceId = null;
+  }
 
   try {
     const apiUrl = import.meta.env.VITE_API_URL || "";
@@ -184,19 +194,21 @@ export const submitGame = async (payload: SubmitGameInput) => {
       return { ok: false, reason: "no-auth" } as any;
     }
 
+    const body = {
+      uid,
+      name: payload.name?.slice(0, 24) || "Player",
+      difficulty: payload.difficulty,
+      score: Number(payload.userScore) || 0,
+      playedSeconds: payload.playedSeconds ?? null,
+      seed: payload.seed,
+      moves: payload.moves,
+      locale: payload.locale,
+      deviceId: deviceId,
+    } as any;
     const resp = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({
-        uid,
-        name: payload.name?.slice(0, 24) || "Player",
-        difficulty: payload.difficulty,
-        score: Number(payload.userScore) || 0,
-        playedSeconds: payload.playedSeconds ?? null,
-        seed: payload.seed,
-        moves: payload.moves,
-        locale: payload.locale,
-      }),
+      body: JSON.stringify(body),
     });
 
     if (!resp.ok) {
