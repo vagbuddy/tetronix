@@ -210,7 +210,13 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
 
         {showLeaderboard && (
           <div className="leaderboard-modal" style={{ marginTop: 18 }}>
-            <h3>{t("Leaderboard", { defaultValue: "Leaderboard" })}</h3>
+            <h3>
+              {t("Leaderboard", { defaultValue: "Leaderboard" })} -{" "}
+              {t(`difficulty.${difficulty}`)}
+            </h3>
+            {/* <div style={{ marginBottom: 8, color: "#ccc", fontSize: 16 }}>
+              Difficulty: {t(`difficulty.${difficulty}`)}
+            </div> */}
             <table
               style={{
                 width: "100%",
