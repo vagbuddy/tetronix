@@ -42,6 +42,16 @@ const Game: React.FC = () => {
     discardSavedAndRestart,
     loadedFromStorage,
   } = useGameState();
+  const [allowReopenGameOver, setAllowReopenGameOver] = useState(false);
+  const [reopenedGameOverVisible, setReopenedGameOverVisible] = useState(false);
+  const [submittedSnapshot, setSubmittedSnapshot] = useState<{
+    leaderboard?: any[];
+    userRank?: number;
+  } | null>(null);
+
+  const handleScoreClick = () => {
+    if (allowReopenGameOver) setReopenedGameOverVisible(true);
+  };
 
   // Initialize the prompt visibility from whether a saved game was loaded
   // at startup to avoid rendering the pause modal briefly on first paint.
@@ -221,6 +231,7 @@ const Game: React.FC = () => {
             flipEnabled={flipEnabled}
             score={state.score}
             cellSize={currentCellSize}
+            onScoreClick={handleScoreClick}
           />
         </div>
 
@@ -230,6 +241,7 @@ const Game: React.FC = () => {
               score={state.score}
               clearsCount={state.clearsCount}
               gameOver={state.gameOver}
+              onScoreClick={handleScoreClick}
               paused={state.paused}
               elapsedSeconds={liveElapsed}
               onPause={pause}
@@ -267,8 +279,50 @@ const Game: React.FC = () => {
           seed={state.seed}
           moves={state.moveLog}
           canSubmit={!!state.seedFromServer}
-          onRestart={restart}
-          onContinue={continueGame}
+          onRestart={() => {
+            // clear any reopen state when restarting
+            setAllowReopenGameOver(false);
+            setSubmittedSnapshot(null);
+            restart();
+          }}
+          onContinue={() => {
+            continueGame();
+            setAllowReopenGameOver(true);
+          }}
+          onSubmitted={(leaderboard, userRank) => {
+            setSubmittedSnapshot({ leaderboard, userRank });
+          }}
+        />
+      )}
+
+      {reopenedGameOverVisible && (
+        <GameOverModal
+          score={state.score}
+          playedSeconds={
+            state.startTime
+              ? Math.floor(
+                  ((state.endTime || Date.now()) - state.startTime) / 1000
+                )
+              : 0
+          }
+          difficulty={state.difficulty as Difficulty}
+          seed={state.seed}
+          moves={state.moveLog}
+          canSubmit={!!state.seedFromServer && !submittedSnapshot}
+          initialLeaderboard={submittedSnapshot?.leaderboard}
+          initialUserRank={submittedSnapshot?.userRank}
+          onRestart={() => {
+            setAllowReopenGameOver(false);
+            setSubmittedSnapshot(null);
+            setReopenedGameOverVisible(false);
+            restart();
+          }}
+          onContinue={() => {
+            setReopenedGameOverVisible(false);
+          }}
+          onSubmitted={(leaderboard, userRank) => {
+            setSubmittedSnapshot({ leaderboard, userRank });
+          }}
         />
       )}
 

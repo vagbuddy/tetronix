@@ -100,7 +100,7 @@ const initialGen = generateRandomPiecesWithRng(
 
 const initialState: GameState = {
   grid: createEmptyGrid(),
-  availablePieces: initialGen.pieces,
+  availablePieces: [],
   selectedPiece: null,
   score: 0,
   clearsCount: 0,
@@ -476,6 +476,8 @@ export const useGameState = () => {
     number | null
   >(needsSeedVerification);
   const skipSaveRef = useRef(false);
+  // request id for mount/startGame — used to ignore late server responses
+  const mountRequestIdRef = useRef<symbol | null>(null);
 
   const selectPiece = useCallback((piece: TetrisPiece) => {
     dispatch({ type: "SELECT_PIECE", piece });
@@ -558,7 +560,9 @@ export const useGameState = () => {
 
   const setDifficulty = useCallback((difficulty: Difficulty) => {
     setPendingSeedVerification(null);
-    dispatch({ type: "SET_DIFFICULTY", difficulty });
+    // Do not immediately generate local pieces. Instead, try to obtain a
+    // server-issued seed and only fall back to a locally-generated seed
+    // after a configurable timeout.
     if (startGamePendingRef.current) return;
     startGamePendingRef.current = true;
     (async () => {
@@ -568,6 +572,7 @@ export const useGameState = () => {
           (window as any).tetronixStartGameTimeoutMs) ||
         Number(import.meta.env.VITE_START_GAME_TIMEOUT_MS) ||
         5000;
+
       let res: any = { ok: false, reason: "timeout" };
       try {
         res = await Promise.race([
@@ -579,13 +584,18 @@ export const useGameState = () => {
             )
           ),
         ]);
+
         if ((res as any)?.seed != null) {
+          // Server provided a seed: set difficulty using that seed
           dispatch({
             type: "SET_DIFFICULTY_WITH_SEED",
             difficulty,
             seed: (res as any).seed,
             seedFromServer: true,
           });
+        } else {
+          // No server seed (timeout or failed): generate local seed and apply
+          dispatch({ type: "SET_DIFFICULTY", difficulty });
         }
       } finally {
         startGamePendingRef.current = false;
@@ -703,20 +713,66 @@ export const useGameState = () => {
     ) {
       return;
     }
-
     if (startGamePendingRef.current) return;
     startGamePendingRef.current = true;
 
-    let cancelled = false;
+    const reqId = Symbol("mount-start");
+    mountRequestIdRef.current = reqId;
+
     (async () => {
+      const timeoutMs =
+        (typeof window !== "undefined" &&
+          (window as any).tetronixStartGameTimeoutMs) ||
+        Number(import.meta.env.VITE_START_GAME_TIMEOUT_MS) ||
+        5000;
+
+      const startPromise = startGame();
+
+      // If startPromise resolves first we will get its result; otherwise the
+      // timeout object wins. We still attach a guarded handler to startPromise
+      // so that if it resolves later it won't overwrite the local game.
+      startPromise
+        .then((maybeRes) => {
+          // Only apply server seed if this request is still the active one.
+          if (mountRequestIdRef.current !== reqId) return;
+          if ((maybeRes as any)?.seed != null) {
+            // Clear request id to avoid duplicate application from the awaited
+            // race branch below.
+            mountRequestIdRef.current = null;
+            dispatch({
+              type: "RESET_WITH_SEED",
+              seed: (maybeRes as any).seed,
+              seedFromServer: true,
+            });
+          }
+        })
+        .catch(() => {});
+
+      let res: any = { ok: false, reason: "timeout" };
       try {
-        const res = await startGame();
-        if (!cancelled && (res as any)?.seed != null) {
+        res = await Promise.race([
+          startPromise,
+          new Promise((resolve) =>
+            setTimeout(
+              () => resolve({ ok: false, reason: "timeout" }),
+              timeoutMs
+            )
+          ),
+        ]);
+
+        if ((res as any)?.seed != null && mountRequestIdRef.current === reqId) {
+          // Server responded within timeout. Clear request id and apply seed.
+          mountRequestIdRef.current = null;
           dispatch({
             type: "RESET_WITH_SEED",
             seed: (res as any).seed,
             seedFromServer: true,
           });
+        } else if (mountRequestIdRef.current === reqId) {
+          // No server response within timeout (or call failed): ensure local
+          // game is started. Use RESTART to generate a fresh local seed/pieces.
+          mountRequestIdRef.current = null;
+          dispatch({ type: "RESTART" });
         }
       } finally {
         startGamePendingRef.current = false;
@@ -724,7 +780,8 @@ export const useGameState = () => {
     })();
 
     return () => {
-      cancelled = true;
+      // mark as cancelled so the guarded handler won't apply late responses
+      mountRequestIdRef.current = null;
     };
   }, []);
 

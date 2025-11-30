@@ -33,6 +33,7 @@ interface PieceSelectionProps {
   flipEnabled: boolean;
   score: number;
   cellSize?: number;
+  onScoreClick?: () => void;
 }
 
 // Draggable piece component
@@ -434,6 +435,7 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
   flipEnabled,
   score,
   cellSize: propCellSize,
+  onScoreClick,
 }) => {
   const { t } = useTranslation();
   const [draggedPiece, setDraggedPiece] = useState<TetrisPiece | null>(null);
@@ -507,7 +509,11 @@ const PieceSelection: React.FC<PieceSelectionProps> = ({
     <div className="piece-selection">
       <div className="piece-selection-header">
         <h3>{t("availablePieces")}</h3>
-        <div className="score-display">
+        <div
+          className="score-display"
+          onClick={onScoreClick}
+          style={onScoreClick ? { cursor: "pointer" } : undefined}
+        >
           <span className="score-label">{t("score")}:</span>
           <span className="score-value">{score}</span>
         </div>

@@ -11,6 +11,7 @@ interface GameInfoProps {
   onPause: () => void;
   onResume: () => void;
   onRestart: () => void;
+  onScoreClick?: () => void;
   rotationEnabled: boolean;
 }
 
@@ -23,6 +24,7 @@ const GameInfo: React.FC<GameInfoProps> = ({
   onPause,
   onResume,
   onRestart,
+  onScoreClick,
   rotationEnabled,
 }) => {
   const { t } = useTranslation();
@@ -37,7 +39,10 @@ const GameInfo: React.FC<GameInfoProps> = ({
   return (
     <div className="game-info">
       <div className="score-section">
-        <h2>
+        <h2
+          onClick={onScoreClick}
+          style={onScoreClick ? { cursor: "pointer" } : undefined}
+        >
           {t("score")}: {score.toLocaleString()}
         </h2>
         <div className="stats">

@@ -19,6 +19,12 @@ interface GameOverModalProps {
   canSubmit?: boolean;
   onRestart: () => void;
   onContinue: () => void;
+  // Called when the score was successfully submitted so parent can remember it
+  onSubmitted?: (leaderboard?: any[], userRank?: number) => void;
+  // When reopening a previously-submitted score, parent can provide the
+  // leaderboard snapshot so the modal shows it immediately.
+  initialLeaderboard?: any[];
+  initialUserRank?: number;
 }
 
 const GameOverModal: React.FC<GameOverModalProps> = ({
@@ -30,6 +36,9 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   onRestart,
   onContinue,
   canSubmit,
+  onSubmitted,
+  initialLeaderboard,
+  initialUserRank,
 }) => {
   const { t, i18n } = useTranslation();
   const [name, setName] = useState<string>(getSavedUsername() || "");
@@ -39,9 +48,13 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
   // Cooldown in ms, from env or default 1 min
   const SUBMIT_COOLDOWN_MS =
     Number(import.meta.env.VITE_LEADERBOARD_SUBMIT_COOLDOWN_MS) || 60 * 1000;
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
-  const [userRank, setUserRank] = useState<number | null>(null);
+  const [leaderboard, setLeaderboard] = useState<any[]>(
+    initialLeaderboard || []
+  );
+  const [showLeaderboard, setShowLeaderboard] = useState(!!initialLeaderboard);
+  const [userRank, setUserRank] = useState<number | null>(
+    typeof initialUserRank === "number" ? initialUserRank : null
+  );
 
   const isCooldown = lastSubmitAt
     ? Date.now() - lastSubmitAt < SUBMIT_COOLDOWN_MS
@@ -126,6 +139,10 @@ const GameOverModal: React.FC<GameOverModalProps> = ({
         setLeaderboard(merged.slice(0, 5));
         setUserRank(userIdx + 1);
         setShowLeaderboard(true);
+        // Inform parent that submit succeeded
+        try {
+          onSubmitted && onSubmitted(merged.slice(0, 5), userIdx + 1);
+        } catch {}
       } else {
         console.error(
           "[GameOverModal] Submit failed:",
